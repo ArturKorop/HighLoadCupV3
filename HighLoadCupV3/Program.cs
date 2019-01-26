@@ -15,7 +15,7 @@ namespace HighLoadCupV3
     {
         public static void Main(string[] args)
         {
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            GCSettings.LatencyMode = GCLatencyMode.LowLatency;
             Console.WriteLine("Is server GC: " + GCSettings.IsServerGC);
             Console.WriteLine("Latency Mode: " + GCSettings.LatencyMode);
 

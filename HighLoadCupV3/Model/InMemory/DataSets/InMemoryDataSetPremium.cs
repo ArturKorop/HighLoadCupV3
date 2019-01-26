@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
-    // For Status
+    // For Premium
     public class InMemoryDataSetPremium
     {
         private const int Count = 3;

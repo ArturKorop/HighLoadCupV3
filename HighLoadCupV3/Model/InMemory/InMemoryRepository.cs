@@ -10,9 +10,7 @@ namespace HighLoadCupV3.Model.InMemory
     public class InMemoryRepository
     {
         public int MaxAccountId { get; set; }
-        //TODO: remove SortedId and IdSet - use only account and MaxAccount 
-        //public List<int> SortedId { get; private set; } = new List<int>();
-        public HashSet<int> IdSet { get; private set; } = new HashSet<int>();
+
         public HashSet<string> Emails { get; set; } = new HashSet<string>();
 
         public InMemoryDataSetSex SexData { get; } = new InMemoryDataSetSex();
@@ -34,14 +32,12 @@ namespace HighLoadCupV3.Model.InMemory
         public InMemoryDataSetInterests InterestsData { get; } = new InMemoryDataSetInterests();
 
         public AccountData[] Accounts { get; }
-        //public ILikesStorage LikesStorage { get; }
         public EmailsStorage EmailsStorage { get; set; }
         public  LikesBuffer LikesBuffer { get; set; }
 
         public InMemoryRepository(int accountsCount)
         {
             Accounts = new AccountData[accountsCount];
-            //LikesStorage = new CombinedLikesStorage(accountsCount);
             EmailsStorage = new EmailsStorage(this);
             LikesBuffer = new LikesBuffer(accountsCount, this);
             _desiredPostCount = accountsCount < 100000 ? 10000 : 90000;
@@ -72,7 +68,6 @@ namespace HighLoadCupV3.Model.InMemory
                         $"{DateTime.Now.ToLongTimeString()} Create indexes after all POST [{_postCount}] in {sw.ElapsedMilliseconds} ms.");
 
                     Emails = null;
-                    IdSet = null;
                 });
             }
         }
@@ -88,10 +83,13 @@ namespace HighLoadCupV3.Model.InMemory
             }
         }
 
+        public bool IsExistedAccountId(int id)
+        {
+            return id > 0 && id <= MaxAccountId && Accounts[id] != null;
+        }
+
         public void CreateMainIndexes(bool afterPost)
         {
-            //SortedId = IdSet.ToList();
-            //SortedId.Sort(new DescComparer());
             EmailsStorage.SortAndPropagate();
 
             if (afterPost)
@@ -137,56 +135,6 @@ namespace HighLoadCupV3.Model.InMemory
 
             Console.WriteLine($"BirthYear {BirthYearData.GetStatistics(full)}");
             Console.WriteLine($"JoinedYear {JoinedYearData.GetStatistics(full)}");
-
-            //Console.WriteLine($"Likes Storage type: {LikesStorage.GetType()}");
-        }
-    }
-
-    public class LikesBuffer
-    {
-        private readonly List<int>[] _likesFrom;
-        private readonly List<Tuple<int, int>>[] _likesTo;
-        private readonly InMemoryRepository _repo;
-
-        public LikesBuffer(int count, InMemoryRepository repo)
-        {
-            _repo = repo;
-            _likesFrom = new List<int>[count];
-            _likesTo = new List<Tuple<int, int>>[count];
-        }
-
-        public void AddLikes(int liker, int likee, int ts)
-        {
-            if (_likesFrom[liker] == null)
-            {
-                _likesFrom[liker] = new List<int>();
-            }
-
-            _likesFrom[liker].Add(likee);
-
-            if (_likesTo[likee] == null)
-            {
-                _likesTo[likee] = new List<Tuple<int, int>>();
-            }
-
-            _likesTo[likee].Add(Tuple.Create(liker, ts));
-        }
-
-        public void FillLikes()
-        {
-            var accounts = _repo.Accounts;
-            for (int i = 0; i < _likesFrom.Length; i++)
-            {
-                if (_likesFrom[i] != null)
-                {
-                    accounts[i].AddLikesFrom(_likesFrom[i]);
-                }
-
-                if (_likesTo[i] != null)
-                {
-                    accounts[i].AddLikesTo(_likesTo[i]);
-                }
-            }
         }
     }
 }

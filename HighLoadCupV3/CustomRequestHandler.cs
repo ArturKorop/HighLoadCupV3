@@ -13,7 +13,7 @@ namespace HighLoadCupV3
 {
     public class CustomRequestHandler
     {
-        private static readonly JsonSerializer _serializer = new JsonSerializer();
+        private static readonly JsonSerializer Serializer = new JsonSerializer();
         private const int TooMuchTimeNotifier = 5;
         
         private const string AppJsonText = "application/json";
@@ -288,7 +288,7 @@ namespace HighLoadCupV3
             {
                 using (var reader = new JsonTextReader(new StreamReader(request.Body)))
                 {
-                    dto = _serializer.Deserialize<AccountDto>(reader);
+                    dto = Serializer.Deserialize<AccountDto>(reader);
                 }
             }
             catch
@@ -336,7 +336,7 @@ namespace HighLoadCupV3
             {
                 using (var reader = new JsonTextReader(new StreamReader(request.Body)))
                 {
-                    dto = _serializer.Deserialize<AccountUpdatDto>(reader);
+                    dto = Serializer.Deserialize<AccountUpdatDto>(reader);
                 }
             }
             catch
@@ -355,15 +355,6 @@ namespace HighLoadCupV3
                     {
                         buffer.AddLikes(idValue, dtoLike.Id, dtoLike.TimeStamp);
                     }
-                    //var accounts = Holder.Instance.InMemory.Accounts;
-                    //foreach (var likeId in dto.Likes.Select(x => x.Id).ToArray())
-                    //{
-                    //    accounts[idValue].AddLikeFrom(likeId);
-                    //}
-                    //foreach (var like in dto.Likes)
-                    //{
-                    //    accounts[like.Id].AddLikeTo(idValue, like.TimeStamp);
-                    //}
                 }
 
                 return new ResponseData(202, EmptyValue);
@@ -389,7 +380,7 @@ namespace HighLoadCupV3
             {
                 using (var reader = new JsonTextReader(new StreamReader(request.Body)))
                 {
-                    dto = _serializer.Deserialize<LikesUpdateDto>(reader);
+                    dto = Serializer.Deserialize<LikesUpdateDto>(reader);
                 }
             }
             catch
@@ -398,8 +389,8 @@ namespace HighLoadCupV3
                 return _bad;
             }
 
-            var ids = Holder.Instance.InMemory.IdSet;
-            if (dto.Likes.Any(x => !ids.Contains(x.Likee) || !ids.Contains(x.Liker)))
+            var repo = Holder.Instance.InMemory;
+            if (dto.Likes.Any(x => !repo.IsExistedAccountId(x.Likee) || !repo.IsExistedAccountId(x.Liker)))
             {
                 Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
@@ -409,11 +400,6 @@ namespace HighLoadCupV3
             foreach (var likePair in dto.Likes)
             {
                 buffer.AddLikes(likePair.Liker, likePair.Likee, likePair.TimeStamp);
-                //accounts[likePair.Key].AddLikesFrom(likePair.Select(x => x.Likee).ToArray());
-                //foreach (var likeUpdateDto in likePair)
-                //{
-                //    accounts[likeUpdateDto.Likee].AddLikeTo(likeUpdateDto.Liker, likeUpdateDto.TimeStamp);
-                //}
             }
 
             Holder.Instance.InMemory.NotifyAboutPost();

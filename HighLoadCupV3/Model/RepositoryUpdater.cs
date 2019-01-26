@@ -19,7 +19,7 @@ namespace HighLoadCupV3.Model
 
         public void AddAndValidateNewAccount(AccountDto dto)
         {
-            if (_inMemory.IdSet.Contains(dto.Id))
+            if (_inMemory.IsExistedAccountId(dto.Id))
             {
                 throw new InvalidUpdateException($"Account {dto.Id} already existed");
             }
@@ -54,7 +54,6 @@ namespace HighLoadCupV3.Model
         {
             var id = dto.Id;
             var acc = new AccountData {Id = id};
-            _inMemory.IdSet.Add(id);
 
             //FName
             acc.FNameIndex = _inMemory.FNameData.Add(dto.FName ?? string.Empty, id);
@@ -130,7 +129,7 @@ namespace HighLoadCupV3.Model
 
         public void UpdateExistedAccount(int id, AccountUpdatDto dto)
         {
-            if (id > _inMemory.Accounts.Length || _inMemory.Accounts[id] == null)
+            if (!_inMemory.IsExistedAccountId(id))
             {
                 throw new AccountNotFoundException($"Account with id {id} not exists");
             }
