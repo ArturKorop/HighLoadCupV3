@@ -18,77 +18,6 @@ namespace HighLoadCupV3.Model.Filters.Filter
             _converter = new IdResultWithResponseDtoConverter(repo);
         }
 
-        //public async  Task<string> FilterByAsync(Dictionary<string, string> queries)
-        //{
-        //    if(!Validate(queries, out var limit))
-        //    {
-        //        return null;
-        //    }
-
-        //    queries.Remove("query_id");
-        //    var requiredFields = new HashSet<string> { Names.Id, Names.Email };
-
-        //    var likeFilter = _factory.TryGetLikes(queries);
-        //    if (likeFilter != null)
-        //    {
-        //        if (!likeFilter.IsValid)
-        //        {
-        //            return null;
-        //        }
-
-        //        if (likeFilter.IsEmpty)
-        //        {
-        //            return _converter.Convert(new AccountData[0], null);
-        //        }
-
-        //        queries.Remove("likes_contains");
-        //    }
-
-        //    var filters = new List<IFilter>();
-        //    var empty = false;  
-        //    foreach (var query in queries)
-        //    {
-        //        var filter = _factory.GetFilter(query.Key, query.Value);
-        //        if(filter == null || !filter.IsValid)
-        //        {
-        //            return null;
-        //        }
-
-        //        if (filter.IsEmpty)
-        //        {
-        //            empty = true;
-        //        }
-
-        //        filters.Add(filter);
-
-        //        if (!filter.IsExcluded())
-        //        {
-        //            requiredFields.Add(filter.Field);
-        //        }
-        //    }
-
-        //    if (empty)
-        //    {
-        //        return _converter.Convert(new AccountData[0], null);
-        //    }
-
-        //    IEnumerable<AccountData> result = null;
-        //    if(likeFilter != null)
-        //    {
-        //        result = await likeFilter.FilterAsync();
-        //    }
-
-        //    filters.Sort((a, b) => a.Order - b.Order);
-        //    foreach(var filter in filters)
-        //    {
-        //        result = filter.Filter(result);
-        //    }
-
-        //    var ids = (result ?? _repo.SortedId.Select(x => _repo.Accounts[x])).Take(limit).ToArray();
-
-        //    return _converter.Convert(ids, requiredFields);
-        //}
-
         public string FilterBy(Dictionary<string, string> queries)
         {
             if (!Validate(queries, out var limit))
@@ -155,7 +84,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
                 result = filter.Filter(result);
             }
 
-            var accounts = (result ?? _repo.GetSortedAccounts()).Take(limit).ToArray();
+            var accounts = (result ?? _repo.GetSortedAccounts()).Take(limit);
 
             return _converter.Convert(accounts, requiredFields);
         }

@@ -43,17 +43,11 @@ namespace HighLoadCupV3.Model
             }
 
             var id = dto.Id;
-             _inMemory.Accounts[id].AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id).ToList());
+             _inMemory.Accounts[id].AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id).ToArray());
              foreach (var like in dto.Likes)
              {
                  _inMemory.Accounts[like.Id].AddLikeTo(id, like.TimeStamp);
              }
-        }
-
-        public void AddNewLikes(LikeUpdateDto dto)
-        {
-            _inMemory.Accounts[dto.Liker].AddLikeFrom(dto.Likee);
-            _inMemory.Accounts[dto.Likee].AddLikeTo(dto.Liker, dto.TimeStamp);
         }
 
         public void AddNewAccount(AccountDto dto)
@@ -288,7 +282,7 @@ namespace HighLoadCupV3.Model
             // Likes
             if (dto.Likes != null)
             {
-                acc.AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id));
+                acc.AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id).ToArray());
                 foreach (var like in dto.Likes)
                 {
                     _inMemory.Accounts[like.Id].AddLikeTo(id, like.TimeStamp);

@@ -1,4 +1,4 @@
-FROM microsoft/dotnet:2.1-aspnetcore-runtime AS base
+FROM microsoft/dotnet:2.2-aspnetcore-runtime AS base
 WORKDIR /app
 EXPOSE 80
 
@@ -22,23 +22,23 @@ COPY options.txt /tmp/data
 #COPY data_big.zip /tmp/data/data.zip
 #COPY options.txt /tmp/data
 #
-FROM microsoft/dotnet:2.1-sdk AS build
+FROM microsoft/dotnet:2.2-sdk AS build
 WORKDIR /src
-COPY HighLoadCupWithMongo/HighLoadCupWithMongo.csproj HighLoadCupWithMongo/
-COPY NuGet.Config HighLoadCupWithMongo/
-RUN dotnet restore HighLoadCupWithMongo/HighLoadCupWithMongo.csproj
+COPY HighLoadCupV3/HighLoadCupV3.csproj HighLoadCupV3/
+COPY NuGet.Config HighLoadCupV3/
+RUN dotnet restore HighLoadCupV3/HighLoadCupV3.csproj
 COPY . .
-WORKDIR /src/HighLoadCupWithMongo
-RUN dotnet build HighLoadCupWithMongo.csproj -c Debug -o /app
+WORKDIR /src/HighLoadCupV3
+RUN dotnet build HighLoadCupV3.csproj -c Debug -o /app
 
 FROM build AS publish
-RUN dotnet publish HighLoadCupWithMongo.csproj -c Debug -o /app
+RUN dotnet publish HighLoadCupV3.csproj -c Debug -o /app
 
 
 FROM small AS final
 WORKDIR /app
 COPY --from=publish /app .
 
-CMD dotnet HighLoadCupWithMongo.dll
+CMD dotnet HighLoadCupV3.dll
 
  

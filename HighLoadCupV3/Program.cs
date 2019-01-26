@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime;
-using System.Threading.Tasks;
 using HighLoadCupV3.Model;
 using HighLoadCupV3.Model.Filters.Filter;
 using HighLoadCupV3.Model.Filters.Group;
@@ -12,8 +8,6 @@ using HighLoadCupV3.Model.Filters.Suggest;
 using HighLoadCupV3.Model.InMemory;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace HighLoadCupV3
 {
@@ -21,12 +15,13 @@ namespace HighLoadCupV3
     {
         public static void Main(string[] args)
         {
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine("Is server GC: " + GCSettings.IsServerGC);
             Console.WriteLine("Latency Mode: " + GCSettings.LatencyMode);
 
             var dataFilePath = "/tmp/data/data.zip";
             var optionsPath = "/tmp/data/options.txt";
-            var extractPath = "/tmp/data/zip";
+            var extractPath = "zip";
             var retriever = new FileReader();
 
             var dataLoader = new DataLoader();
@@ -47,7 +42,8 @@ namespace HighLoadCupV3
             Holder.Instance.Recommend = new Recommend(inMemory);
             Holder.Instance.Suggest = new Suggest(inMemory);
 
-            inMemory.CreateMainIndexes();
+            inMemory.CreateMainIndexes(false);
+
 
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
@@ -57,8 +53,7 @@ namespace HighLoadCupV3
 
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
-                //.UseLibuv()
-                //.UseLinuxTransport()
+                .UseLibuv()
                 .UseStartup<Startup>();
     }
 }

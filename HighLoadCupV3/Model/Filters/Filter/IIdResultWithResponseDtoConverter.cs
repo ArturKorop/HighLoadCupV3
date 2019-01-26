@@ -5,6 +5,6 @@ namespace HighLoadCupV3.Model.Filters.Filter
 {
     public interface IIdsToResponseConverter
     {
-        string Convert(AccountData[] ids, HashSet<string> requiredFields);
+        string Convert(IEnumerable<AccountData> accounts, HashSet<string> requiredFields);
     }
 }

@@ -36,12 +36,14 @@ namespace HighLoadCupV3.Model.InMemory
         public AccountData[] Accounts { get; }
         //public ILikesStorage LikesStorage { get; }
         public EmailsStorage EmailsStorage { get; set; }
+        public  LikesBuffer LikesBuffer { get; set; }
 
         public InMemoryRepository(int accountsCount)
         {
             Accounts = new AccountData[accountsCount];
             //LikesStorage = new CombinedLikesStorage(accountsCount);
             EmailsStorage = new EmailsStorage(this);
+            LikesBuffer = new LikesBuffer(accountsCount, this);
             _desiredPostCount = accountsCount < 100000 ? 10000 : 90000;
         }
 
@@ -58,12 +60,12 @@ namespace HighLoadCupV3.Model.InMemory
 
             if (_postCount == _desiredPostCount)
             {
-                Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started updates afte all POST [{_postCount}]");
+                Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started updates after all POST [{_postCount}]");
                 Task.Run(() =>
                 {
                     var sw = new Stopwatch();
                     sw.Start();
-                    CreateMainIndexes();
+                    CreateMainIndexes(true);
 
                     sw.Stop();
                     Console.WriteLine(
@@ -86,11 +88,17 @@ namespace HighLoadCupV3.Model.InMemory
             }
         }
 
-        public void CreateMainIndexes()
+        public void CreateMainIndexes(bool afterPost)
         {
             //SortedId = IdSet.ToList();
             //SortedId.Sort(new DescComparer());
             EmailsStorage.SortAndPropagate();
+
+            if (afterPost)
+            {
+                LikesBuffer.FillLikes();
+                LikesBuffer = null;
+            }
 
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
@@ -102,6 +110,9 @@ namespace HighLoadCupV3.Model.InMemory
                 ()=> InterestsData.Sort(),()=> JoinedYearData.Sort(),()=> PremiumData.Sort());
 
             Holder.Instance.Group.CleanCacheAndCreateNewCache();
+
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
 
             Statistics(false);
         }
@@ -128,6 +139,54 @@ namespace HighLoadCupV3.Model.InMemory
             Console.WriteLine($"JoinedYear {JoinedYearData.GetStatistics(full)}");
 
             //Console.WriteLine($"Likes Storage type: {LikesStorage.GetType()}");
+        }
+    }
+
+    public class LikesBuffer
+    {
+        private readonly List<int>[] _likesFrom;
+        private readonly List<Tuple<int, int>>[] _likesTo;
+        private readonly InMemoryRepository _repo;
+
+        public LikesBuffer(int count, InMemoryRepository repo)
+        {
+            _repo = repo;
+            _likesFrom = new List<int>[count];
+            _likesTo = new List<Tuple<int, int>>[count];
+        }
+
+        public void AddLikes(int liker, int likee, int ts)
+        {
+            if (_likesFrom[liker] == null)
+            {
+                _likesFrom[liker] = new List<int>();
+            }
+
+            _likesFrom[liker].Add(likee);
+
+            if (_likesTo[likee] == null)
+            {
+                _likesTo[likee] = new List<Tuple<int, int>>();
+            }
+
+            _likesTo[likee].Add(Tuple.Create(liker, ts));
+        }
+
+        public void FillLikes()
+        {
+            var accounts = _repo.Accounts;
+            for (int i = 0; i < _likesFrom.Length; i++)
+            {
+                if (_likesFrom[i] != null)
+                {
+                    accounts[i].AddLikesFrom(_likesFrom[i]);
+                }
+
+                if (_likesTo[i] != null)
+                {
+                    accounts[i].AddLikesTo(_likesTo[i]);
+                }
+            }
         }
     }
 }

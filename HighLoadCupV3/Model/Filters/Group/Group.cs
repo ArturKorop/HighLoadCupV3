@@ -32,53 +32,6 @@ namespace HighLoadCupV3.Model.Filters.Group
             _cacheKeyGenerator = new FilterQueryCacheKeyGenerator(repo);
         }
 
-        //public async Task<string> GroupByAsync(GroupQuery query)
-        //{
-        //    var holder = new GroupHolder();
-        //    var groupBy = GetGroup(query.Key);
-        //    if (groupBy == null)
-        //    {
-        //        return JsonConvert.SerializeObject(holder);
-        //    }
-
-        //    if (query.Filter.Count == 0)
-        //    {
-        //        var data = groupBy.GroupBy(query.Order).Take(query.Limit);
-        //        holder.Groups = data;
-
-        //        return JsonConvert.SerializeObject(holder,
-        //        new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-        //    }
-
-        //    var cacheKey = _cacheKeyGenerator.Generate(query.Filter);
-        //    if (cacheKey == null)
-        //    {
-        //        var accounts = await FilterByAsync(query.Filter);
-        //        if(accounts == null)
-        //        {
-        //            return null;
-        //        }
-        //        else if (!accounts.Any())
-        //        {
-        //            holder.Groups = Enumerable.Empty<Dto.GroupResponseDto>();
-        //        }
-        //        else
-        //        {
-        //            var data = groupBy.GroupBy(accounts, query.Order).Take(query.Limit);
-        //            holder.Groups = data;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        var data = groupBy.GroupByWithCache(query.Order, cacheKey).Take(query.Limit);
-        //        holder.Groups = data;
-        //    }
-
-        //    return JsonConvert.SerializeObject(holder,
-        //        new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
-        
-        //}
-
         public string GroupBy(GroupQuery query)
         {
             var holder = new GroupHolder();
@@ -151,58 +104,6 @@ namespace HighLoadCupV3.Model.Filters.Group
                     return null;
             }
         }
-
-        //private async Task<IEnumerable<AccountData>> FilterByAsync(Dictionary<string, string> queries)
-        //{
-
-        //    var likesFiler = _factory.TryGetLikes(queries);
-        //    IEnumerable<AccountData> result = null;
-        //    if (likesFiler != null)
-        //    {
-        //        if (!likesFiler.IsValid)
-        //        {
-        //            return null;
-        //        }
-
-        //        if (likesFiler.IsEmpty)
-        //        {
-        //            return Enumerable.Empty<AccountData>();
-        //        }
-
-        //        queries.Remove(Names.Likes);
-        //        result = await likesFiler.FilterAsync();
-        //    }
-
-        //    var filters = new List<IFilter>();
-        //    foreach (var query in queries)
-        //    {
-        //        var filter = _factory.GetFilter(query.Key, query.Value);
-        //        if (filter == null)
-        //        {
-        //            return null;
-        //        }
-
-        //        if (!filter.IsValid)
-        //        {
-        //            return null;
-        //        }
-
-        //        if (filter.IsEmpty)
-        //        {
-        //            return Enumerable.Empty<AccountData>();
-        //        }
-
-        //        filters.Add(filter);
-        //    }
-
-        //    filters.Sort((a, b) => a.Order - b.Order);
-        //    foreach (var filter in filters)
-        //    {
-        //        result = filter.Filter(result);
-        //    }
-
-        //    return result ?? Enumerable.Empty<AccountData>();
-        //}
 
         private IEnumerable<AccountData> FilterBy(Dictionary<string, string> queries)
         {

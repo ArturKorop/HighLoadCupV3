@@ -5,8 +5,6 @@ namespace HighLoadCupV3.Model.InMemory
 {
     public class AccountData
     {
-        private static readonly long _mask = (long)Math.Pow(2, 24) - 1;
-
         public int Id { get; set; }
 
         public string Email { get; set; }
@@ -39,171 +37,113 @@ namespace HighLoadCupV3.Model.InMemory
         public int PremiumStart { get; set; }
         public int PremiumFinish { get; set; }
 
-        private List<long> _likesFromId = new List<long>();
-        private byte _likesFromCount = 0;
+        private int[] _likesFromId;
+        private int[,] _likesTo;
 
-        private List<long> _likesToId = new List<long>();
-        private List<int> _likesToTs  = new List<int>();
-
-        public void AddLikesFromToNewAccount(IEnumerable<int> likesFrom)
+        public void AddLikesFromToNewAccount(int[] likesFrom)
         {
-            long idStorage = 0;
-            var count = 0;
-            foreach (var like in likesFrom)
-            {
-                idStorage = AddIntToLong(idStorage, like, count);
-                count++;
-                if(count == 3)
-                {
-                    count = 0;
-                    _likesFromId.Add(idStorage);
-                    idStorage = 0;
-                }
-
-                _likesFromCount++;
-            }
-
-            if (count > 0)
-            {
-                _likesFromId.Add(idStorage);
-            }
+            _likesFromId = likesFrom;
         }
 
-        public void AddLikeFrom(int id)
+        public void AddLikesFrom(List<int> likesFrom)
         {
-            var count = _likesFromCount % 3;
-            long idStorage = 0;
-            if (count == 0)
+            if (_likesFromId == null)
             {
-                idStorage = AddIntToLong(idStorage, id, 0);
-                _likesFromId.Add(idStorage);
+                _likesFromId = likesFrom.ToArray();
             }
             else
             {
-                idStorage = AddIntToLong(_likesFromId[_likesFromId.Count - 1], id, count);
-                _likesFromId[_likesFromId.Count - 1] = idStorage;
+                var l = _likesFromId.Length;
+                var buffer = new int[l + likesFrom.Count];
+                Array.Copy(_likesFromId, buffer, l);
+                _likesFromId = buffer;
+                for (int i = 0; i < likesFrom.Count; i++)
+                {
+                    _likesFromId[l + i] = likesFrom[i];
+                }
             }
-
-            _likesFromCount++;
         }
 
         public bool AnyLikesFrom()
         {
-            return _likesFromCount > 0;
+            return _likesFromId != null;
+        }
+
+        public void AddLikesTo(List<Tuple<int, int>> likersWithTs)
+        {
+            if (_likesTo == null)
+            {
+                _likesTo = new int[likersWithTs.Count,2];
+                for (int i = 0; i < likersWithTs.Count; i++)
+                {
+                    _likesTo[i, 0] = likersWithTs[i].Item1;
+                    _likesTo[i, 1] = likersWithTs[i].Item2;
+                }
+            }
+            else
+            {
+                var l = _likesTo.GetLength(0);
+                var likesToBuffer = new int[l + likersWithTs.Count, 2];
+                Array.Copy(_likesTo, likesToBuffer, _likesTo.Length);
+                _likesTo = likesToBuffer;
+
+                for (int i = 0; i < likersWithTs.Count; i++)
+                {
+                    _likesTo[l+i, 0] = likersWithTs[i].Item1;
+                    _likesTo[l+i, 1] = likersWithTs[i].Item2;
+                }
+
+            }
         }
 
         public void AddLikeTo(int id, int ts)
         {
-            var count = _likesToTs.Count % 3;
-            long idStorage = 0;
-            if(count == 0)
+            if (_likesTo == null)
             {
-                idStorage = AddIntToLong(idStorage, id, 0);
-                _likesToId.Add(idStorage);
+                _likesTo = new int[1,2];
+                _likesTo[0, 0] = id;
+                _likesTo[0, 1] = ts;
             }
             else
             {
-                idStorage = AddIntToLong(_likesToId[_likesToId.Count - 1], id, count);
-                _likesToId[_likesToId.Count - 1] = idStorage;
+                var l = _likesTo.GetLength(0);
+                var likesToBuffer = new int[l + 1, 2];
+                Array.Copy(_likesTo, likesToBuffer, _likesTo.Length);
+                _likesTo = likesToBuffer;
+                _likesTo[l, 0] = id;
+                _likesTo[l, 1] = ts;
             }
-
-            _likesToTs.Add(ts);
         }
 
         public IEnumerable<int> GetLikesFrom()
         {
-            for (int i = 0; i < _likesFromId.Count - 1; i++)
+            for (int i = 0; i < _likesFromId.Length; i++)
             {
-                foreach (var likeId in GetIntsFromLong(_likesFromId[i]))
-                {
-                    yield return likeId;
-                }
-            }
-
-            foreach (var likeId in GetIntsFromLong(_likesFromId[_likesFromId.Count-1]))
-            {
-                if (likeId > 0)
-                {
-                    yield return likeId;
-                }
+                yield return _likesFromId[i];
             }
         }
 
         public IEnumerable<int> GetLikesTo()
         {
-            for (int i = 0; i < _likesToId.Count - 1; i++)
+            var l = _likesTo.GetLength(0);
+            for (int i = 0; i < l; i++)
             {
-                foreach (var likeId in GetIntsFromLong(_likesToId[i]))
-                {
-                    yield return likeId;
-                }
-            }
-
-            foreach (var likeId in GetIntsFromLong(_likesToId[_likesToId.Count - 1]))
-            {
-                if (likeId > 0)
-                {
-                    yield return likeId;
-                }
+                yield return _likesTo[i, 0];
             }
         }
 
         public IEnumerable<Tuple<int, int>> GetLikesToWithTs()
         {
-            var tsIndex = 0;
-            for (int i = 0; i < _likesToId.Count - 1; i++)
+            var l = _likesTo.GetLength(0);
+            for (int i = 0; i < l; i++)
             {
-                foreach (var likeId in GetIntsFromLong(_likesToId[i]))
-                {
-                    yield return Tuple.Create(likeId, _likesToTs[tsIndex]);
-                    tsIndex++;
-                }
-            }
-
-            foreach (var likeId in GetIntsFromLong(_likesToId[_likesToId.Count - 1]))
-            {
-                if (likeId > 0)
-                {
-                    yield return Tuple.Create(likeId, _likesToTs[tsIndex]);
-                    tsIndex++;
-                }
+                yield return Tuple.Create(_likesTo[i, 0], _likesTo[i, 1]);
             }
         }
 
         public bool AnyLikesTo()
         {
-            return _likesToTs.Count > 0;
-        }
-
-        private const int _firstShift = 21;
-        private const int _secondShift = 42;
-
-        private const long _zeroMask = 2097151;
-        private const long _firstMask = 4398044413952;
-
-        private static long AddIntToLong(long target, int input, int shift)
-        {
-            if(shift == 0)
-            {
-                return target | (long)input;
-            }
-            else if(shift == 1)
-            {
-                return target | ((long)input << _firstShift);
-            }
-            else 
-            {
-                return target | ((long)input << _secondShift);
-            }
-        }
-
-        private static IEnumerable<int> GetIntsFromLong(long input)
-        {
-            yield return (int)(input & _zeroMask);
-
-            yield return (int)((input & _firstMask) >> _firstShift);
-
-            yield return (int)(input >> _secondShift);
+            return _likesTo != null;
         }
     }
 }

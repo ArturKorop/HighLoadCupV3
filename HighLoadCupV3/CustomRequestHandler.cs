@@ -109,28 +109,6 @@ namespace HighLoadCupV3
             }
         }
 
-        //[HttpGet("filter")]
-        //public async Task<ResponseData> Filter(HttpRequest request)
-        //{
-        //    //var sw = new Stopwatch();
-        //    //sw.Start();
-
-        //    var filter = Holder.Instance.Filter;
-        //    var queries = request.Query.ToDictionary(x => x.Key, x => x.Value.First());
-        //    var data = await filter.FilterByAsync(queries);
-        //    //if (sw.ElapsedMilliseconds >= TooMuchTimeNotifier)
-        //    //{
-        //    //    Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Query [{Request.QueryString.Value}] in {sw.ElapsedMilliseconds} ms");
-        //    //}
-
-        //    if (data == null)
-        //    {
-        //        return _bad;
-        //    }
-
-        //    return new ResponseData(200, data);
-        //}
-
         public ResponseData Filter(HttpRequest request)
         {
             //var sw = new Stopwatch();
@@ -151,34 +129,6 @@ namespace HighLoadCupV3
 
             return new ResponseData(200, data);
         }
-
-        //public async Task<ResponseData> Group(HttpRequest request)
-        //{
-        //    //var sw = new Stopwatch();
-        //    //sw.Start();
-
-        //    var filter = Holder.Instance.Group;
-        //    var dict = request.Query.ToDictionary(x => x.Key, x => x.Value.First());
-        //    var parser = Holder.Instance.GroupQueryParser;
-        //    if (!parser.TryParse(dict, out var groupQuery))
-        //    {
-        //        return _bad;
-        //    }
-
-        //    var data = await filter.GroupByAsync(groupQuery);
-        //    //if (sw.ElapsedMilliseconds >= TooMuchTimeNotifier)
-        //    //{
-        //    //    Console.WriteLine(
-        //    //        $"{DateTime.Now.ToLongTimeString()}Query [{request.QueryString.Value}] in {sw.ElapsedMilliseconds} ms");
-        //    //}
-
-        //    if (data == null)
-        //    {
-        //        return _bad;
-        //    }
-
-        //    return new ResponseData(200, data);
-        //}
 
         public ResponseData Group(HttpRequest request)
         {
@@ -320,58 +270,6 @@ namespace HighLoadCupV3
             return  new ResponseData(200, data);
         }
 
-        //public async Task<ResponseData> SuggestAsync(string id, HttpRequest request)
-        //{
-        //    //return _wrong;
-        //    if (!int.TryParse(id, out var idValue))
-        //    {
-        //        return _bad;
-        //    }
-
-        //    if (idValue < 0 || idValue >= Holder.Instance.InMemory.Accounts.Length || Holder.Instance.InMemory.Accounts[idValue] == null)
-        //    {
-        //        return _notFound;
-        //    }
-
-        //    var dict = request.Query.ToDictionary(x => x.Key, x => x.Value.First());
-
-        //    string key = null;
-        //    string value = null;
-        //    if (dict.ContainsKey(Names.City))
-        //    {
-        //        key = Names.City;
-        //        value = dict[Names.City];
-        //        dict.Remove(Names.City);
-        //    }
-        //    else if (dict.ContainsKey(Names.Country))
-        //    {
-        //        key = Names.Country;
-        //        value = dict[Names.Country];
-        //        dict.Remove(Names.Country);
-        //    }
-
-        //    if (!string.IsNullOrEmpty(key) && string.IsNullOrEmpty(value))
-        //    {
-        //        return _bad;
-        //    }
-
-        //    if (!dict.ContainsKey(Names.Limit) || !int.TryParse(dict[Names.Limit], out var limit) || limit < 1)
-        //    {
-        //        return _bad;
-        //    }
-
-        //    dict.Remove(Names.Limit);
-        //    dict.Remove("query_id");
-        //    if (dict.Count > 0)
-        //    {
-        //        return _bad;
-        //    }
-
-        //    var data = await Holder.Instance.Suggest.GetSuggestionsAsync(idValue, limit, key, value);
-
-        //    return new ResponseData(200, data);
-        //}
-
         public ResponseData AllOtherGetRequests()
         {
             return _notFound;
@@ -405,10 +303,11 @@ namespace HighLoadCupV3
                 if (dto.Likes != null)
                 {
                     var accounts = Holder.Instance.InMemory.Accounts;
-                    accounts[dto.Id].AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id));
+                    accounts[dto.Id].AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id).ToArray());
+                    var buffer = Holder.Instance.InMemory.LikesBuffer;
                     foreach (var like in dto.Likes)
                     {
-                        accounts[like.Id].AddLikeTo(dto.Id, like.TimeStamp);
+                        buffer.AddLikes(dto.Id, like.Id, like.TimeStamp);
                     }
                 }
 
@@ -451,12 +350,20 @@ namespace HighLoadCupV3
                 Holder.Instance.Updater.UpdateExistedAccount(idValue, dto);
                 if (dto.Likes != null)
                 {
-                    var accounts = Holder.Instance.InMemory.Accounts;
-                    accounts[idValue].AddLikesFromToNewAccount(dto.Likes.Select(x => x.Id));
-                    foreach (var like in dto.Likes)
+                    var buffer = Holder.Instance.InMemory.LikesBuffer;
+                    foreach (var dtoLike in dto.Likes)
                     {
-                        accounts[like.Id].AddLikeTo(idValue, like.TimeStamp);
+                        buffer.AddLikes(idValue, dtoLike.Id, dtoLike.TimeStamp);
                     }
+                    //var accounts = Holder.Instance.InMemory.Accounts;
+                    //foreach (var likeId in dto.Likes.Select(x => x.Id).ToArray())
+                    //{
+                    //    accounts[idValue].AddLikeFrom(likeId);
+                    //}
+                    //foreach (var like in dto.Likes)
+                    //{
+                    //    accounts[like.Id].AddLikeTo(idValue, like.TimeStamp);
+                    //}
                 }
 
                 return new ResponseData(202, EmptyValue);
@@ -498,11 +405,15 @@ namespace HighLoadCupV3
                 return _bad;
             }
 
-            var accounts = Holder.Instance.InMemory.Accounts;
+            var buffer = Holder.Instance.InMemory.LikesBuffer;
             foreach (var likePair in dto.Likes)
             {
-                accounts[likePair.Liker].AddLikeFrom(likePair.Likee);
-                accounts[likePair.Likee].AddLikeTo(likePair.Liker, likePair.TimeStamp);
+                buffer.AddLikes(likePair.Liker, likePair.Likee, likePair.TimeStamp);
+                //accounts[likePair.Key].AddLikesFrom(likePair.Select(x => x.Likee).ToArray());
+                //foreach (var likeUpdateDto in likePair)
+                //{
+                //    accounts[likeUpdateDto.Likee].AddLikeTo(likeUpdateDto.Liker, likeUpdateDto.TimeStamp);
+                //}
             }
 
             Holder.Instance.InMemory.NotifyAboutPost();

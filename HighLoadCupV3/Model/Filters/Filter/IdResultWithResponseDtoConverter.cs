@@ -14,7 +14,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
             _repo = inMemory;
         }
 
-        public string Convert(AccountData[] accounts, HashSet<string> requiredFields)
+        public string Convert(IEnumerable<AccountData> accounts, HashSet<string> requiredFields)
         {
             var data = new List<AccountResponseDto>();
             foreach (var acc in accounts)
