@@ -24,6 +24,8 @@ namespace HighLoadCupV3.Model.Filters.Filter
 
             var holder = new Holder { Accounts = data };
 
+            //var serializer = new JsonSerializer {NullValueHandling = NullValueHandling.Ignore};
+
             return JsonConvert.SerializeObject(holder, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
         }
 
@@ -67,31 +69,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
 
             if (requiredFields.Contains(Names.Phone))
             {
-                if (acc.Phone != 0)
-                {
-                    var phoneSub = acc.Phone.ToString();
-                    if (phoneSub.Length < 7)
-                    {
-                        if (phoneSub.Length == 5)
-                        {
-                            phoneSub = "00" + phoneSub;
-                        }
-                        else if (phoneSub.Length == 6)
-                        {
-                            phoneSub = "0" + phoneSub;
-                        }
-                        else if (phoneSub.Length == 4)
-                        {
-                            phoneSub = "000" + phoneSub;
-                        }
-                        else if (phoneSub.Length == 3)
-                        {
-                            phoneSub = "0000" + phoneSub;
-                        }
-                    }
-
-                    res.Phone = $"8({_repo.CodeData.GetValue(acc.CodeIndex)}){phoneSub}";
-                }
+                res.Phone = acc.Phone;
             }
 
             if (requiredFields.Contains(Names.Birth))

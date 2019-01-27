@@ -43,11 +43,11 @@ namespace HighLoadCupV3.Model.Filters.InMemoryFilters
         {
             if (value == 0)
             {
-                return input.Where(x => x.Phone != 0);
+                return input.Where(x => x.Phone != null);
             }
             else
             {
-                return input.Where(x => x.Phone == 0);
+                return input.Where(x => x.Phone == null);
             }
         }
 

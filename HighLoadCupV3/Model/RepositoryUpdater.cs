@@ -66,7 +66,7 @@ namespace HighLoadCupV3.Model
             if (!string.IsNullOrEmpty(dto.Phone))
             {
                 code = GetPhoneCode(dto.Phone);
-                acc.Phone = int.Parse(dto.Phone.Substring(6));
+                acc.Phone = dto.Phone;
             }
 
             acc.CodeIndex = _inMemory.CodeData.Add(code, id);
@@ -181,7 +181,7 @@ namespace HighLoadCupV3.Model
             if (!string.IsNullOrEmpty(dto.Phone))
             {
                 var code = GetPhoneCode(dto.Phone);
-                acc.Phone = int.Parse(dto.Phone.Substring(6));
+                acc.Phone = dto.Phone;
                 acc.CodeIndex = _inMemory.CodeData.UpdateOrAdd(code, id, acc.CodeIndex);
             }
 

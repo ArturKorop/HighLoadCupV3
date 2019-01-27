@@ -21,7 +21,7 @@ namespace HighLoadCupV3.Model
             iteration = 0;
 
             Console.WriteLine("Fill main data");
-            foreach (var dto in retriever.ReadDto(path, extractPath))
+            foreach (var dto in retriever.ReadDto(path, extractPath, true))
             {
                 updater.AddNewAccount(dto);
                 count++;
@@ -34,7 +34,7 @@ namespace HighLoadCupV3.Model
 
             Console.WriteLine($"Fill main data in {sw.ElapsedMilliseconds / 1000} seconds");
 
-            foreach (var dto in retriever.ReadDto(path, extractPath))
+            foreach (var dto in retriever.ReadDto(path, extractPath, false))
             {
                 updater.AddLikesToNewAccounts(dto);
                 count++;

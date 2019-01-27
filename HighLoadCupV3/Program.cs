@@ -8,6 +8,7 @@ using HighLoadCupV3.Model.Filters.Suggest;
 using HighLoadCupV3.Model.InMemory;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity.UI.V3.Pages.Account.Manage.Internal;
 
 namespace HighLoadCupV3
 {
@@ -15,7 +16,7 @@ namespace HighLoadCupV3
     {
         public static void Main(string[] args)
         {
-            GCSettings.LatencyMode = GCLatencyMode.LowLatency;
+            //GCSettings.LatencyMode = GCLatencyMode.LowLatency;
             Console.WriteLine("Is server GC: " + GCSettings.IsServerGC);
             Console.WriteLine("Latency Mode: " + GCSettings.LatencyMode);
 
@@ -44,10 +45,14 @@ namespace HighLoadCupV3
 
             inMemory.CreateMainIndexes(false);
 
+            TotalMemoryHelper.Show();
 
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
             GC.WaitForFullGCComplete();
+
+            TotalMemoryHelper.Show();
+
             CreateWebHostBuilder(args).Build().Run();
         }
 

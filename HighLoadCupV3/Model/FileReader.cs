@@ -26,10 +26,15 @@ namespace HighLoadCupV3.Model
             return int.Parse(line);
         }
 
-        public IEnumerable<AccountDto> ReadDto(string path, string extractionPath)
+        public IEnumerable<AccountDto> ReadDto(string path, string extractionPath, bool unzip)
         {
-            if (!Directory.Exists(extractionPath))
+            if (unzip)
             {
+                if (Directory.Exists(extractionPath))
+                {
+                    Directory.Delete(extractionPath, true);
+                }
+
                 ZipFile.ExtractToDirectory(path, extractionPath);
             }
 

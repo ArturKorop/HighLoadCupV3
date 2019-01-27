@@ -8,6 +8,7 @@ namespace HighLoadCupV3.Model.InMemory
         public int Id { get; set; }
 
         public string Email { get; set; }
+        public string Phone { get; set; }
         public int EmailSortedIndex { get; set; }
 
         // Can be null
@@ -32,7 +33,6 @@ namespace HighLoadCupV3.Model.InMemory
         // Always existed
         public byte[] Interests { get; set; }
 
-        public int Phone { get; set; }
         public int Birth { get; set; }
         public int PremiumStart { get; set; }
         public int PremiumFinish { get; set; }
@@ -115,12 +115,9 @@ namespace HighLoadCupV3.Model.InMemory
             }
         }
 
-        public IEnumerable<int> GetLikesFrom()
+        public int[] GetLikesFrom()
         {
-            for (int i = 0; i < _likesFromId.Length; i++)
-            {
-                yield return _likesFromId[i];
-            }
+            return _likesFromId;
         }
 
         public IEnumerable<int> GetLikesTo()
@@ -132,13 +129,9 @@ namespace HighLoadCupV3.Model.InMemory
             }
         }
 
-        public IEnumerable<Tuple<int, int>> GetLikesToWithTs()
+        public int[,] GetLikesToWithTs()
         {
-            var l = _likesTo.GetLength(0);
-            for (int i = 0; i < l; i++)
-            {
-                yield return Tuple.Create(_likesTo[i, 0], _likesTo[i, 1]);
-            }
+            return _likesTo;
         }
 
         public bool AnyLikesTo()

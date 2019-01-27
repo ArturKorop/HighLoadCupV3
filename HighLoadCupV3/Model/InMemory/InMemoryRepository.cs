@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime;
 using System.Threading.Tasks;
+using System.Timers;
 using HighLoadCupV3.Model.InMemory.DataSets;
 
 namespace HighLoadCupV3.Model.InMemory
@@ -46,6 +47,7 @@ namespace HighLoadCupV3.Model.InMemory
         private readonly int _desiredPostCount;
 
         private int _postCount = 0;
+        private static Timer _swMemory;
 
         public void NotifyAboutPost()
         {
@@ -56,16 +58,23 @@ namespace HighLoadCupV3.Model.InMemory
 
             if (_postCount == _desiredPostCount)
             {
-                Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started updates after all POST [{_postCount}]");
                 Task.Run(() =>
                 {
+                    Console.WriteLine( $"{DateTime.Now.ToLongTimeString()} Started updates after all POST [{_postCount}]");
+                    _swMemory = new Timer(1000);
+                    _swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
+                    _swMemory.Start();
+
                     var sw = new Stopwatch();
                     sw.Start();
                     CreateMainIndexes(true);
 
+
                     sw.Stop();
                     Console.WriteLine(
                         $"{DateTime.Now.ToLongTimeString()} Create indexes after all POST [{_postCount}] in {sw.ElapsedMilliseconds} ms.");
+
+                    GC.Collect();
 
                     Emails = null;
                 });
@@ -94,23 +103,20 @@ namespace HighLoadCupV3.Model.InMemory
 
             if (afterPost)
             {
-                LikesBuffer.FillLikes();
-                LikesBuffer = null;
+                Task.Run(() =>
+                {
+                    LikesBuffer.FillLikes();
+                    LikesBuffer = null;
+                });
             }
 
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect();
-
-            Parallel.Invoke(
+            Parallel.Invoke( () => EmailsStorage.SortAndPropagate(),
                 () => FNameData.Sort(), ()=>SNameData.Sort(),()=> SexData.Sort(),
                 ()=> StatusData.Sort(),()=>  CityData.Sort(),()=> CountryData.Sort(),
                 ()=> CodeData.Sort(),()=> DomainData.Sort(),()=>  BirthYearData.Sort(),
                 ()=> InterestsData.Sort(),()=> JoinedYearData.Sort(),()=> PremiumData.Sort());
 
             Holder.Instance.Group.CleanCacheAndCreateNewCache();
-
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect();
 
             Statistics(false);
         }

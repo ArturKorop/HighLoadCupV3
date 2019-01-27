@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Buffers;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using HighLoadCupV3.Model.Dto;
@@ -14,6 +16,12 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         private readonly SuggestResponseDtoConverter _converter;
         private readonly SuggestFilterFactory _factory;
 
+        private static readonly ArrayPool<KeyValuePair<int, SimilarityCounter>> Pool =
+            ArrayPool<KeyValuePair<int, SimilarityCounter>>.Create();
+
+        private static readonly IComparer<KeyValuePair<int, SimilarityCounter>> DescSimilarityComparer =
+            new SimilarityComparer();
+
         public Suggest(InMemoryRepository repo)
         {
             _repo = repo;
@@ -25,17 +33,17 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         {
             if (!_repo.Accounts[id].AnyLikesFrom())
             {
-                var holder2 = new SuggestAccountsResponseDto { Accounts = Enumerable.Empty<SuggestResponseDto>() };
+                var holder2 = new SuggestAccountsResponseDto {Accounts = Enumerable.Empty<SuggestResponseDto>()};
 
                 return JsonConvert.SerializeObject(holder2,
-                    new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+                    new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
             }
 
             var suggestions = SuggestForV2(id, limit, key, value);
-            var holder = new SuggestAccountsResponseDto { Accounts = suggestions };
+            var holder = new SuggestAccountsResponseDto {Accounts = suggestions};
 
             return JsonConvert.SerializeObject(holder,
-                new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+                new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
         }
 
         public IEnumerable<SuggestResponseDto> SuggestForV2(int id, int limit, string key, string value)
@@ -43,7 +51,6 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             var accounts = _repo.Accounts;
 
             var uniqueLikesOfTarget = accounts[id].GetLikesFrom().ToHashSet();
-            var uniqueLikesOfTargetArray = uniqueLikesOfTarget.ToArray();
 
             ISuggestFilter filter = null;
             if (key != null)
@@ -55,58 +62,67 @@ namespace HighLoadCupV3.Model.Filters.Suggest
                 }
             }
 
-            var likersData = new Dictionary<int, List<int[]>>();
-            foreach (var likeeId in uniqueLikesOfTargetArray)
+            var likersData = new Dictionary<int, SimilarityCounter>();
+
+            foreach (var likeeId in uniqueLikesOfTarget)
             {
+                long targetTsSum = 0;
+                long targetTsCount = 0;
+
                 var likersOfTargetLike = accounts[likeeId].GetLikesToWithTs();
-                foreach (var idTsPair in likersOfTargetLike)
+                var l = likersOfTargetLike.GetLength(0);
+                for (int i = 0; i < l; i++)
                 {
-                    if (filter == null || filter.IsOk(idTsPair.Item1) || idTsPair.Item1 == id)
+                    var likerId = likersOfTargetLike[i, 0];
+                    var ts = likersOfTargetLike[i, 1];
+
+                    if (likerId == id)
                     {
-                        if (!likersData.ContainsKey(idTsPair.Item1))
+                        targetTsCount++;
+                        targetTsSum += ts;
+                    }
+                    else if (filter == null || filter.IsOk(likerId))
+                    {
+                        if (!likersData.ContainsKey(likerId))
                         {
-                            likersData[idTsPair.Item1] = new List<int[]> { new int[] { likeeId, idTsPair.Item2 } };
+                            likersData[likerId] = new SimilarityCounter();
                         }
-                        else
-                        {
-                            likersData[idTsPair.Item1].Add(new int[] { likeeId, idTsPair.Item2 });
-                        }
+
+                        likersData[likerId].AddTs(ts);
                     }
                 }
-            }
 
-            var targetData = likersData[id];
-            likersData.Remove(id);
-
-            var targetPrecalcualteData = Precalculate(targetData);
-
-            var similarityData = new List<Tuple<int, double>>();
-            foreach (var likers in likersData)
-            {
-                var precalculate = Precalculate(likers.Value);
-                var similarity = CalculateSimilarity(targetPrecalcualteData, precalculate);
-
-                similarityData.Add(Tuple.Create(likers.Key, similarity));
-            }
-
-            similarityData.Sort((x, y) =>
-            {
-                if (x.Item2 == y.Item2)
+                var targetTs = (double) (targetTsSum / targetTsCount);
+                foreach (var counter in likersData.Values)
                 {
-                    return y.Item1 - x.Item1;
+                    counter.Calculate(targetTs);
                 }
+            }
 
-                var diff = y.Item2 - x.Item2;
-                return diff < 0 ? -1 : diff > 0 ? 1 : 0;
-            });
+
+            if (likersData.Count == 0)
+            {
+                return Enumerable.Empty<SuggestResponseDto>();
+            }
+
+            var count = likersData.Count;
+            var sortedIdsBySimilarity = Pool.Rent(count);
+
+            var index = 0;
+            foreach (var pair in likersData)
+            {
+                sortedIdsBySimilarity[index] = pair;
+                index++;
+            }
+
+            Array.Sort(sortedIdsBySimilarity, 0, count, DescSimilarityComparer);
 
             var allExceptLikes = new List<int>();
-
-            foreach (var tuple in similarityData)
+            for (int i = 0; i < count; i++)
             {
-                var likesFromCurrent = accounts[tuple.Item1].GetLikesFrom().ToList();
+                var likesFromCurrent = accounts[sortedIdsBySimilarity[i].Key].GetLikesFrom();
+                Array.Sort(likesFromCurrent, _descComparer);
 
-                likesFromCurrent.Sort(_descComparer);
                 foreach (var like in likesFromCurrent)
                 {
                     if (!uniqueLikesOfTarget.Contains(like))
@@ -122,123 +138,54 @@ namespace HighLoadCupV3.Model.Filters.Suggest
                 }
             }
 
+            Pool.Return(sortedIdsBySimilarity);
 
             return allExceptLikes.Take(limit).Select(x => _converter.Convert(x));
         }
+    }
 
-        private Dictionary<int, double> Precalculate(Tuple<int, int>[] input)
+    public class SimilarityComparer : IComparer<KeyValuePair<int, SimilarityCounter>>
+    {
+        public int Compare(KeyValuePair<int, SimilarityCounter> x, KeyValuePair<int, SimilarityCounter> y)
         {
-            var data = new Dictionary<int, List<int>>();
-            foreach (var tuple in input)
+            if (x.Value.Similarity != y.Value.Similarity)
             {
-                if (!data.ContainsKey(tuple.Item1))
-                {
-                    data[tuple.Item1] = new List<int> { tuple.Item2 };
-                }
-                else
-                {
-                    data[tuple.Item1].Add(tuple.Item2);
-                }
+                return y.Value.Similarity - x.Value.Similarity > 0 ? 1 : -1;
             }
 
-            var result = new Dictionary<int, double>();
-            foreach (var pair in data)
-            {
-                double sum = 0;
-                var count = 0;
-                foreach (var sc in pair.Value)
-                {
-                    sum += sc;
-                    count++;
-                }
+            return y.Key - x.Key;
+        }
+    }
 
-                result[pair.Key] = sum / count;
-            }
+    public class SimilarityCounter
+    {
+        private long _tsSum;
+        private byte _tsCount;
 
-            return result;
+        public double Similarity { get; private set; }
+
+        public void AddTs(int ts)
+        {
+            _tsCount++;
+            _tsSum += ts;
         }
 
-        private List<double[]> Precalculate(List<int[]> input)
+        public void Calculate(double targetTs)
         {
-            input.Sort((x, y) => x[0] - y[0]);
-            var result = new List<double[]>();
+            if (_tsCount == 0) return;
 
-            var prev = input[0][0];
-            var curSum = input[0][1];
-            var curCount = 1;
-
-            for (int i = 1; i < input.Count; i++)
+            double avg = (double) _tsSum / _tsCount;
+            if (avg == targetTs)
             {
-                var cur = input[i];
-                if (cur[0] != prev)
-                {
-                    result.Add(new double[] { prev, (double)curSum / curCount });
-                    prev = cur[0];
-                    curSum = cur[1];
-                    curCount = 1;
-                }
-                else
-                {
-                    curSum += cur[1];
-                    curCount++;
-                }
+                Similarity++;
+            }
+            else
+            {
+                Similarity += 1 / Math.Abs(avg - targetTs);
             }
 
-            result.Add(new double[] { prev, (double)curSum / curCount });
-
-            return result;
-        }
-
-        private double CalculateSimilarity(Dictionary<int, double> target, Dictionary<int, double> current)
-        {
-            double result = 0;
-
-            foreach (var pair in current)
-            {
-                var targetTs = target[pair.Key];
-                if (targetTs == pair.Value)
-                {
-                    result++;
-                }
-                else
-                {
-                    result += 1 / Math.Abs(targetTs - pair.Value);
-                }
-            }
-
-            return result;
-        }
-
-        private double CalculateSimilarity(List<double[]> target, List<double[]> current)
-        {
-            double result = 0;
-
-            int i = 0;
-            int j = 0;
-
-            while (j < current.Count)
-            {
-                if (target[i][0] == current[j][0])
-                {
-                    if (target[i][1] == current[j][1])
-                    {
-                        result++;
-                    }
-                    else
-                    {
-                        result += 1 / Math.Abs(target[i][1] - current[j][1]);
-                    }
-
-                    i++;
-                    j++;
-                }
-                else
-                {
-                    i++;
-                }
-            }
-
-            return result;
+            _tsCount = 0;
+            _tsSum = 0;
         }
     }
 }
