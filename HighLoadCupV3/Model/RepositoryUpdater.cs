@@ -17,22 +17,26 @@ namespace HighLoadCupV3.Model
             _inMemory = repo;
         }
 
-        public void AddAndValidateNewAccount(AccountDto dto)
+        public bool AddAndValidateNewAccount(AccountDto dto)
         {
             if (_inMemory.IsExistedAccountId(dto.Id))
             {
-                throw new InvalidUpdateException($"Account {dto.Id} already existed");
+                return false;
+                //throw new InvalidUpdateException($"Account {dto.Id} already existed");
             }
 
             if (_inMemory.Emails.Contains(dto.Email))
             {
-                throw new InvalidUpdateException($"Email {dto.Email} already existed");
+                return false;   
+                //throw new InvalidUpdateException($"Email {dto.Email} already existed");
             }
 
             lock (_inMemory)
             {
                 AddNewAccount(dto);
             }
+
+            return true;
         }
 
         public void AddLikesToNewAccounts(AccountDto dto)
@@ -127,32 +131,38 @@ namespace HighLoadCupV3.Model
             _inMemory.MaxAccountId = Math.Max(_inMemory.MaxAccountId, id);
         }
 
-        public void UpdateExistedAccount(int id, AccountUpdatDto dto)
+        public byte UpdateExistedAccount(int id, AccountUpdatDto dto)
         {
             if (!_inMemory.IsExistedAccountId(id))
             {
-                throw new AccountNotFoundException($"Account with id {id} not exists");
+                return 1;
+                //throw new AccountNotFoundException($"Account with id {id} not exists");
             }
 
             if (dto.Email != null && (!IsValidEmail(dto.Email) || _inMemory.Emails.Contains(dto.Email)))
             {
-                throw new InvalidUpdateException($"Email {dto.Email} already existed");
+                return 2;
+                //throw new InvalidUpdateException($"Email {dto.Email} already existed");
             }
 
             if (dto.Sex != null && !_inMemory.SexData.ContainsValue(dto.Sex))
             {
-                throw new InvalidUpdateException($"Sex {dto.Sex} invalid");
+                return 2;
+                //throw new InvalidUpdateException($"Sex {dto.Sex} invalid");
             }
 
             if (dto.Status != null && !_inMemory.StatusData.ContainsValue(dto.Status))
             {
-                throw new InvalidUpdateException($"Sex {dto.Status} invalid");
+                return 2;
+                //throw new InvalidUpdateException($"Sex {dto.Status} invalid");
             }
 
             lock (_inMemory)
             {
                 UpdateExistedAccountImpl(id, dto);
             }
+
+            return 0;
         }
 
         private void UpdateExistedAccountImpl(int id, AccountUpdatDto dto)

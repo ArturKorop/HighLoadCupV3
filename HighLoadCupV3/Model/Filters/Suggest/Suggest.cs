@@ -19,6 +19,10 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         private static readonly ArrayPool<KeyValuePair<int, SimilarityCounter>> Pool =
             ArrayPool<KeyValuePair<int, SimilarityCounter>>.Create();
 
+        private static readonly ObjectPool<SimilarityCounter> CounterPool = new ObjectPool<SimilarityCounter>(10000);
+
+        private static readonly DictionaryPool<int, SimilarityCounter> SimilarityDictionaryPool = new DictionaryPool<int, SimilarityCounter>(10, 4096);
+
         private static readonly IComparer<KeyValuePair<int, SimilarityCounter>> DescSimilarityComparer =
             new SimilarityComparer();
 
@@ -50,6 +54,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         {
             var accounts = _repo.Accounts;
 
+
             var uniqueLikesOfTarget = accounts[id].GetLikesFrom().ToHashSet();
 
             ISuggestFilter filter = null;
@@ -62,7 +67,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
                 }
             }
 
-            var likersData = new Dictionary<int, SimilarityCounter>();
+            var likersData = SimilarityDictionaryPool.Rent();
 
             foreach (var likeeId in uniqueLikesOfTarget)
             {
@@ -85,7 +90,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
                     {
                         if (!likersData.ContainsKey(likerId))
                         {
-                            likersData[likerId] = new SimilarityCounter();
+                            likersData[likerId] = CounterPool.Rent();
                         }
 
                         likersData[likerId].AddTs(ts);
@@ -139,6 +144,8 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             }
 
             Pool.Return(sortedIdsBySimilarity);
+            CounterPool.Return(sortedIdsBySimilarity.Take(count).Select(x => x.Value));
+            SimilarityDictionaryPool.Return(likersData);
 
             return allExceptLikes.Take(limit).Select(x => _converter.Convert(x));
         }
@@ -157,7 +164,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         }
     }
 
-    public class SimilarityCounter
+    public class SimilarityCounter : IResetable
     {
         private long _tsSum;
         private byte _tsCount;
@@ -186,6 +193,11 @@ namespace HighLoadCupV3.Model.Filters.Suggest
 
             _tsCount = 0;
             _tsSum = 0;
+        }
+
+        public void Reset()
+        {
+            Similarity = 0;
         }
     }
 }

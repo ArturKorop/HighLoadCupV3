@@ -297,30 +297,26 @@ namespace HighLoadCupV3
                 return _bad;
             }
 
-            try
-            {
-                Holder.Instance.Updater.AddAndValidateNewAccount(dto);
-                if (dto.Likes != null)
-                {
-                    var accounts = Holder.Instance.InMemory.Accounts;
-                    accounts[dto.Id].AddLikesFromToNewAccount(dto.Likes.Select(x=>x.Id).ToArray());
-                    var buffer = Holder.Instance.InMemory.LikesBuffer;
-                    foreach (var like in dto.Likes)
-                    {
-                        buffer.AddLikes(dto.Id, like.Id, like.TimeStamp);
-                    }
-                }
-
-                return new ResponseData(201, EmptyValue);
-            }
-            catch (InvalidUpdateException ex)
-            {
-                return _bad;
-            }
-            finally
+            var isSuccessfulUpdate = Holder.Instance.Updater.AddAndValidateNewAccount(dto);
+            if (!isSuccessfulUpdate)
             {
                 Holder.Instance.InMemory.NotifyAboutPost();
+                return _bad;
             }
+
+            if (dto.Likes != null)
+            {
+                var accounts = Holder.Instance.InMemory.Accounts;
+                accounts[dto.Id].AddLikesFromToNewAccount(dto.Likes.Select(x => x.Id).ToArray());
+                var buffer = Holder.Instance.InMemory.LikesBuffer;
+                foreach (var like in dto.Likes)
+                {
+                    buffer.AddLikes(dto.Id, like.Id, like.TimeStamp);
+                }
+            }
+
+            Holder.Instance.InMemory.NotifyAboutPost();
+            return new ResponseData(201, EmptyValue);
         }
 
         public ResponseData Update(string id, HttpRequest request)
@@ -345,9 +341,9 @@ namespace HighLoadCupV3
                 return _bad;
             }
 
-            try
+            var updateCode = Holder.Instance.Updater.UpdateExistedAccount(idValue, dto);
+            if (updateCode == 0)
             {
-                Holder.Instance.Updater.UpdateExistedAccount(idValue, dto);
                 if (dto.Likes != null)
                 {
                     var buffer = Holder.Instance.InMemory.LikesBuffer;
@@ -357,19 +353,18 @@ namespace HighLoadCupV3
                     }
                 }
 
+                Holder.Instance.InMemory.NotifyAboutPost();
                 return new ResponseData(202, EmptyValue);
             }
-            catch (AccountNotFoundException ex)
-            {
-                return _notFound;
-            }
-            catch (InvalidUpdateException ex)
-            {
-                return _bad;
-            }
-            finally
+            if (updateCode == 1)
             {
                 Holder.Instance.InMemory.NotifyAboutPost();
+                return _notFound;
+            }
+            else
+            {
+                Holder.Instance.InMemory.NotifyAboutPost();
+                return _bad;
             }
         }
 
