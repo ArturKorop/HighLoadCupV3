@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using HighLoadCupV3.Model.InMemory;
+using Newtonsoft.Json;
 
 namespace HighLoadCupV3.Model.Dto
 {
-    public class SuggestResponseDto
+    public class SuggestResponseDto : IResetable
     {
         [JsonProperty("id")]
         public int Id { get; set; }
@@ -18,5 +19,9 @@ namespace HighLoadCupV3.Model.Dto
 
         [JsonProperty("sname")]
         public string SName { get; set; }
+
+        public void Reset()
+        {
+        }
     }
 }

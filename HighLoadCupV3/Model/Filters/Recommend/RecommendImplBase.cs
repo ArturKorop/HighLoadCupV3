@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using HighLoadCupV3.Model.Dto;
 using HighLoadCupV3.Model.InMemory;
 
@@ -12,6 +13,9 @@ namespace HighLoadCupV3.Model.Filters.Recommend
         protected readonly BucketComparer _comparer = new BucketComparer();
         protected readonly RecommendResponseDtoCovnerter _converter;
 
+        public static ListPool<Tuple<int,int>> ListTuplePool = new ListPool<Tuple<int, int>>(50, 500);
+        public static ListPool<RecommendResponseDto> ResponseListPool = new ListPool<RecommendResponseDto>(10, 20);
+
         protected RecommendImplBase(InMemoryRepository repo, InterestsIntersectCalculator calculator, RecommendResponseDtoCovnerter converter)
         {
             _repo = repo;
@@ -20,6 +24,6 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             _converter = converter;
         }
 
-        public abstract IEnumerable<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids);
+        public abstract List<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids);
     }
 }

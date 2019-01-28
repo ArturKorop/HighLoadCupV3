@@ -46,11 +46,15 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             var suggestions = SuggestForV2(id, limit, key, value);
             var holder = new SuggestAccountsResponseDto {Accounts = suggestions};
 
-            return JsonConvert.SerializeObject(holder,
+            var serializedResult = JsonConvert.SerializeObject(holder,
                 new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
+
+            SuggestResponseDtoConverter.Pool.Return(suggestions);
+
+            return serializedResult;
         }
 
-        public IEnumerable<SuggestResponseDto> SuggestForV2(int id, int limit, string key, string value)
+        public SuggestResponseDto[] SuggestForV2(int id, int limit, string key, string value)
         {
             var accounts = _repo.Accounts;
 
@@ -63,7 +67,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
                 filter = _factory.CreateFilter(key, value);
                 if (filter == null)
                 {
-                    return Enumerable.Empty<SuggestResponseDto>();
+                    return new SuggestResponseDto[0];
                 }
             }
 
@@ -107,7 +111,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
 
             if (likersData.Count == 0)
             {
-                return Enumerable.Empty<SuggestResponseDto>();
+                return new SuggestResponseDto[0];
             }
 
             var count = likersData.Count;
@@ -147,7 +151,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             CounterPool.Return(sortedIdsBySimilarity.Take(count).Select(x => x.Value));
             SimilarityDictionaryPool.Return(likersData);
 
-            return allExceptLikes.Take(limit).Select(x => _converter.Convert(x));
+            return allExceptLikes.Take(limit).Select(x => _converter.Convert(x)).ToArray();
         }
     }
 

@@ -13,13 +13,13 @@ namespace HighLoadCupV3.Model.Filters.Recommend
         {
         }
 
-        public override IEnumerable<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
+        public override List<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
         {
             var targetAcc = _accounts[targetId];
             var targetInterests = targetAcc.Interests;
             if (targetInterests == null)
             {
-                return Enumerable.Empty<RecommendResponseDto>();
+                return ResponseListPool.Rent();
             }
 
             var interestCount = targetInterests.Length;
@@ -28,13 +28,12 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             var buckets = new List<Tuple<int, int>>[6 * targetInterests.Length];
             for (int i = 0; i < buckets.Length; i++)
             {
-                buckets[i] = new List<Tuple<int, int>>();
+                buckets[i] = ListTuplePool.Rent();
             }
 
             FillBuckets(buckets, ids, targetInterests, interestCount, targetBirth, targetAcc.Sex == 0 ? (byte)1 : (byte)0);
 
-            var recommendations = new List<RecommendResponseDto>();
-
+            var recommendations = ResponseListPool.Rent();
 
             for (int i = buckets.Length - 1; i >= 0; i--)
             {
@@ -54,6 +53,8 @@ namespace HighLoadCupV3.Model.Filters.Recommend
                         }
                     }
                 }
+
+                ListTuplePool.Return(current);
 
                 if (recommendations.Count == limit)
                 {

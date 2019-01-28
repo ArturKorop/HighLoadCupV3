@@ -13,18 +13,18 @@ namespace HighLoadCupV3.Model.Filters.Recommend
         {
         }
 
-        public override IEnumerable<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
+        public override List<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
         {
             var targetAcc = _accounts[targetId];
             var targetInterests = targetAcc.Interests;
             if (targetInterests == null)
             {
-                return Enumerable.Empty<RecommendResponseDto>();
+                return ResponseListPool.Rent();
             }
 
             var targetBirth = targetAcc.Birth;
 
-            var recommendations = new List<RecommendResponseDto>();
+            var recommendations = ResponseListPool.Rent();
             var desiredSex = targetAcc.Sex == 0 ? (byte) 1 : (byte) 0;
 
             var from = 5 + desiredSex * 6;
@@ -52,8 +52,15 @@ namespace HighLoadCupV3.Model.Filters.Recommend
                         }
                     }
 
+                    ListTuplePool.Return(current[j]);
+
                     if (recommendations.Count == limit)
                     {
+                        for (int k = j-1; k >= 0; k--)
+                        {
+                            ListTuplePool.Return(current[k]);
+                        }
+
                         break;
                     }
                 }
@@ -72,7 +79,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             var priorityBucketsForInterests = new List<Tuple<int, int>>[targetInterests.Length];
             for (int i = 0; i < targetInterests.Length; i++)
             {
-                priorityBucketsForInterests[i] = new List<Tuple<int, int>>();
+                priorityBucketsForInterests[i] = ListTuplePool.Rent();
             }
 
             foreach (var targetInterest in targetInterests)

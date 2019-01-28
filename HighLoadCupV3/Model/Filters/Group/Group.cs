@@ -191,17 +191,28 @@ namespace HighLoadCupV3.Model.Filters.Group
                 var cacheKey = _cacheKeyGenerator.Generate(key);
 
                 Parallel.Invoke(
+                    () =>
+                    {
+                        _cityStatus.CreateCache(accounts, cacheKey);
+                        _citySex.CreateCache(accounts, cacheKey);
+                    },
+                    () =>
+                    {
+                        _countryStatus.CreateCache(accounts, cacheKey);
+                        _countrySex.CreateCache(accounts, cacheKey);
+                    },
 
-                () => _cityStatus.CreateCache(accounts, cacheKey),
-                () => _citySex.CreateCache(accounts,  cacheKey),
-                () => _countryStatus.CreateCache(accounts,  cacheKey),
-                () => _countrySex.CreateCache(accounts,  cacheKey),
-
-                () => _city.CreateCache(accounts,  cacheKey),
-                () => _country.CreateCache(accounts,  cacheKey),
-                () => _sex.CreateCache(accounts,  cacheKey),
-                () => _status.CreateCache(accounts,  cacheKey),
-                () => _interests.CreateCache(accounts,  cacheKey)
+                    () =>
+                    {
+                        _city.CreateCache(accounts, cacheKey);
+                        _interests.CreateCache(accounts, cacheKey);
+                    },
+                    () =>
+                    {
+                        _sex.CreateCache(accounts, cacheKey);
+                        _status.CreateCache(accounts, cacheKey);
+                        _country.CreateCache(accounts, cacheKey);
+                    }
                 );
             }
         }

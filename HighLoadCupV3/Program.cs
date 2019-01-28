@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using HighLoadCupV3.Model;
 using HighLoadCupV3.Model.Filters.Filter;
@@ -44,7 +45,10 @@ namespace HighLoadCupV3
             Holder.Instance.Recommend = new Recommend(inMemory);
             Holder.Instance.Suggest = new Suggest(inMemory);
 
-            inMemory.CreateMainIndexes(false);
+            var sw = new Stopwatch();
+            sw.Start();
+            inMemory.CreateMainIndexes(false, sw);
+            sw.Stop();
 
             TotalMemoryHelper.Show();
 

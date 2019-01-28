@@ -41,7 +41,11 @@ namespace HighLoadCupV3.Model.InMemory
             Accounts = new AccountData[accountsCount];
             EmailsStorage = new EmailsStorage(this);
             LikesBuffer = new LikesBuffer(accountsCount, this);
+#if  DEBUG
+            _desiredPostCount = 1;
+#else
             _desiredPostCount = accountsCount < 100000 ? 10000 : 90000;
+#endif
         }
 
         private readonly int _desiredPostCount;
@@ -67,16 +71,16 @@ namespace HighLoadCupV3.Model.InMemory
 
                     var sw = new Stopwatch();
                     sw.Start();
-                    CreateMainIndexes(true);
+                    CreateMainIndexes(true, sw);
 
 
                     sw.Stop();
                     Console.WriteLine(
                         $"{DateTime.Now.ToLongTimeString()} Create indexes after all POST [{_postCount}] in {sw.ElapsedMilliseconds} ms.");
+                    Emails = null;
 
                     GC.Collect();
 
-                    Emails = null;
                 });
             }
         }
@@ -97,9 +101,13 @@ namespace HighLoadCupV3.Model.InMemory
             return id > 0 && id <= MaxAccountId && Accounts[id] != null;
         }
 
-        public void CreateMainIndexes(bool afterPost)
+        public void CreateMainIndexes(bool afterPost, Stopwatch sw)
         {
-            EmailsStorage.SortAndPropagate();
+            //Task.Run(() =>
+            //{
+            //    EmailsStorage.SortAndPropagate();
+            //    Console.WriteLine($"Emails propagation done in [{sw.ElapsedMilliseconds}] ms");
+            //});
 
             if (afterPost)
             {
@@ -107,16 +115,45 @@ namespace HighLoadCupV3.Model.InMemory
                 {
                     LikesBuffer.FillLikes();
                     LikesBuffer = null;
+                    Console.WriteLine($"Likes filling done in [{sw.ElapsedMilliseconds}] ms");
                 });
             }
 
-            Parallel.Invoke( () => EmailsStorage.SortAndPropagate(),
-                () => FNameData.Sort(), ()=>SNameData.Sort(),()=> SexData.Sort(),
-                ()=> StatusData.Sort(),()=>  CityData.Sort(),()=> CountryData.Sort(),
-                ()=> CodeData.Sort(),()=> DomainData.Sort(),()=>  BirthYearData.Sort(),
-                ()=> InterestsData.Sort(),()=> JoinedYearData.Sort(),()=> PremiumData.Sort());
+            var preparationForGroup1 = Task.Run(() =>
+            {
+                EmailsStorage.SortAndPropagate();
+                FNameData.Sort();
+                SNameData.Sort();
+                SexData.Sort();
+            });
+
+            var preparationForGroup2 = Task.Run(() =>
+            {
+                StatusData.Sort();
+                CityData.Sort();
+                CountryData.Sort();
+                CodeData.Sort();
+                DomainData.Sort();
+            });
+
+            var preparationForGroup3 = Task.Run(() =>
+            {
+                BirthYearData.Sort();
+                InterestsData.Sort();
+                JoinedYearData.Sort();
+                PremiumData.Sort();
+            });
+
+            Task.WaitAll(preparationForGroup1, preparationForGroup2, preparationForGroup3);
+            Console.WriteLine($"Ids sorting done in [{sw.ElapsedMilliseconds}] ms");
+            //Parallel.Invoke(() => EmailsStorage.SortAndPropagate(),
+            //    () => FNameData.Sort(), () => SNameData.Sort(), () => SexData.Sort(),
+            //    () => StatusData.Sort(), () => CityData.Sort(), () => CountryData.Sort(),
+            //    () => CodeData.Sort(), () => DomainData.Sort(), () => BirthYearData.Sort(),
+            //    () => InterestsData.Sort(), () => JoinedYearData.Sort(), () => PremiumData.Sort());
 
             Holder.Instance.Group.CleanCacheAndCreateNewCache();
+            Console.WriteLine($"Cache recreating done in [{sw.ElapsedMilliseconds}] ms");
 
             Statistics(false);
         }
@@ -141,101 +178,6 @@ namespace HighLoadCupV3.Model.InMemory
 
             Console.WriteLine($"BirthYear {BirthYearData.GetStatistics(full)}");
             Console.WriteLine($"JoinedYear {JoinedYearData.GetStatistics(full)}");
-        }
-    }
-
-    public interface IResetable
-    {
-        void Reset();
-    }
-
-    public class ObjectPool<T> where T : IResetable, new()
-    {
-        public Queue<T> _pool;
-
-        public ObjectPool(int initialCount)
-        {
-            _pool = new Queue<T>();
-            for (int i = 0; i < initialCount; i++)
-            {
-                _pool.Enqueue(new T());
-            }
-        }
-
-        public T Rent()
-        {
-            lock (_pool)
-            {
-                if(_pool.Count > 0)
-                {
-                    return _pool.Dequeue();
-                }
-                else
-                {
-                    return new T();
-                }
-            }
-        }
-
-        public void Return(T obj)
-        {
-            lock (_pool)
-            {
-                obj.Reset();
-                _pool.Enqueue(obj);
-            }
-        }
-
-        public void Return(IEnumerable<T> objects)
-        {
-            lock (_pool)
-            {
-                foreach (var obj in objects)
-                {
-                    obj.Reset();
-                    _pool.Enqueue(obj);
-                }
-            }
-        }
-    }
-
-    public class DictionaryPool<TKey, TValue> 
-    {
-        public readonly Queue<Dictionary<TKey, TValue>> _pool;
-        private readonly int _capacity;
-
-        public DictionaryPool(int initialCount, int capacity)
-        {
-            _capacity = capacity;
-            _pool = new Queue<Dictionary<TKey, TValue>>();
-            for (int i = 0; i < initialCount; i++)
-            {
-                _pool.Enqueue(new Dictionary<TKey, TValue>(capacity));
-            }
-        }
-
-        public Dictionary<TKey, TValue> Rent()
-        {
-            lock (_pool)
-            {
-                if (_pool.Count > 0)
-                {
-                    return _pool.Dequeue();
-                }
-                else
-                {
-                    return new Dictionary<TKey, TValue>(_capacity);
-                }
-            }
-        }
-
-        public void Return(Dictionary<TKey, TValue> dictionary)
-        {
-            lock (_pool)
-            {
-                dictionary.Clear();
-                _pool.Enqueue(dictionary);
-            }
         }
     }
 }
