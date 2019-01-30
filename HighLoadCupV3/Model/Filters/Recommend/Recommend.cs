@@ -19,7 +19,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             _specific = new RecommendSpecificUsers(repo, new InterestsIntersectCalculator(), new RecommendResponseDtoCovnerter(_repo));
         }
 
-        public string GetRecommendations(int id, string key, string value, int limit)
+        public RecommendAccountsResponseDto GetRecommendations(int id, string key, string value, int limit)
         {
             var acc = _repo.Accounts[id];
             var interestsSet = acc.Interests;
@@ -30,7 +30,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
 
             if (interestsSet == null)
             {
-                return JsonConvert.SerializeObject(holder);
+                return holder;
             }
 
             IEnumerable<RecommendResponseDto> recommendations;
@@ -47,10 +47,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
 
             holder.Accounts = recommendations;
 
-            var serializedResult = JsonConvert.SerializeObject(holder,
-                new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-
-            return serializedResult;
+            return holder;
         }
 
         private IEnumerable<int> Filter(string key, string value)

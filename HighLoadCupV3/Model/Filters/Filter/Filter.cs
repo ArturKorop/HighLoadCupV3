@@ -18,7 +18,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
             _converter = new IdResultWithResponseDtoConverter(repo);
         }
 
-        public string FilterBy(Dictionary<string, string> queries)
+        public object FilterBy(Dictionary<string, string> queries)
         {
             if (!Validate(queries, out var limit))
             {

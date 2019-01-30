@@ -32,13 +32,13 @@ namespace HighLoadCupV3.Model.Filters.Group
             _cacheKeyGenerator = new FilterQueryCacheKeyGenerator(repo);
         }
 
-        public string GroupBy(GroupQuery query)
+        public GroupHolder GroupBy(GroupQuery query)
         {
             var holder = new GroupHolder();
             var groupBy = GetGroup(query.Key);
             if (groupBy == null)
             {
-                return JsonConvert.SerializeObject(holder);
+                return holder;
             }
 
             if (query.Filter.Count == 0)
@@ -46,8 +46,7 @@ namespace HighLoadCupV3.Model.Filters.Group
                 var data = groupBy.GroupBy(query.Order).Take(query.Limit);
                 holder.Groups = data;
 
-                return JsonConvert.SerializeObject(holder,
-                new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+                return holder;
             }
 
             var cacheKey = _cacheKeyGenerator.Generate(query.Filter);
@@ -74,8 +73,7 @@ namespace HighLoadCupV3.Model.Filters.Group
                 holder.Groups = data;
             }
 
-            return JsonConvert.SerializeObject(holder,
-                new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+            return holder;
         }
 
         private IGroupBy GetGroup(GroupKey key)

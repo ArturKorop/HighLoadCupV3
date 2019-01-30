@@ -14,7 +14,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
             _repo = inMemory;
         }
 
-        public string Convert(IEnumerable<AccountData> accounts, HashSet<string> requiredFields)
+        public object Convert(IEnumerable<AccountData> accounts, HashSet<string> requiredFields)
         {
             var data = new List<AccountResponseDto>();
             foreach (var acc in accounts)
@@ -24,9 +24,7 @@ namespace HighLoadCupV3.Model.Filters.Filter
 
             var holder = new Holder { Accounts = data };
 
-            //var serializer = new JsonSerializer {NullValueHandling = NullValueHandling.Ignore};
-
-            return JsonConvert.SerializeObject(holder, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+            return holder;
         }
 
         public AccountResponseDto Convert(AccountData acc, HashSet<string> requiredFields)

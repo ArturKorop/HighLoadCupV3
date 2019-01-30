@@ -33,23 +33,19 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             _factory = new SuggestFilterFactory(repo);
         }
 
-        public string GetSuggestions(int id, int limit, string key, string value)
+        public SuggestAccountsResponseDto GetSuggestions(int id, int limit, string key, string value)
         {
             if (!_repo.Accounts[id].AnyLikesFrom())
             {
                 var holder2 = new SuggestAccountsResponseDto {Accounts = Enumerable.Empty<SuggestResponseDto>()};
 
-                return JsonConvert.SerializeObject(holder2,
-                    new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
+                return holder2;
             }
 
             var suggestions = SuggestForV2(id, limit, key, value);
             var holder = new SuggestAccountsResponseDto {Accounts = suggestions};
 
-            var serializedResult = JsonConvert.SerializeObject(holder,
-                new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
-
-            return serializedResult;
+            return holder;
         }
 
         public SuggestResponseDto[] SuggestForV2(int id, int limit, string key, string value)

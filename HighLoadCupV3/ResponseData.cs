@@ -1,17 +1,14 @@
 ﻿namespace HighLoadCupV3
 {
-    public partial class CustomRequestHandler
+    public class ResponseData
     {
-        public class ResponseData
+        public ResponseData(int statusCode, object content)
         {
-            public ResponseData(int statusCode, string content)
-            {
-                StatusCode = statusCode;
-                Content = content;
-            }
-
-            public int StatusCode { get; set; }
-            public string Content { get; set; }
+            StatusCode = statusCode;
+            Content = content;
         }
+
+        public int StatusCode { get; set; }
+        public object Content { get; set; }
     }
 }
