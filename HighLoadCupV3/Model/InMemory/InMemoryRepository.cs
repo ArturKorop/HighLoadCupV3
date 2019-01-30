@@ -42,7 +42,7 @@ namespace HighLoadCupV3.Model.InMemory
             EmailsStorage = new EmailsStorage(this);
             LikesBuffer = new LikesBuffer(accountsCount, this);
 #if  DEBUG
-            _desiredPostCount = 1;
+            _desiredPostCount = 10000;
 #else
             _desiredPostCount = accountsCount < 100000 ? 10000 : 90000;
 #endif
@@ -103,11 +103,10 @@ namespace HighLoadCupV3.Model.InMemory
 
         public void CreateMainIndexes(bool afterPost, Stopwatch sw)
         {
-            //Task.Run(() =>
-            //{
-            //    EmailsStorage.SortAndPropagate();
-            //    Console.WriteLine($"Emails propagation done in [{sw.ElapsedMilliseconds}] ms");
-            //});
+
+            //_swMemory = new Timer(1000);
+            //_swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
+            //_swMemory.Start();
 
             if (afterPost)
             {

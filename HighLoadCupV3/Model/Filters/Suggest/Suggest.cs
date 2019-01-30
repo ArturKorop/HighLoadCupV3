@@ -49,8 +49,6 @@ namespace HighLoadCupV3.Model.Filters.Suggest
             var serializedResult = JsonConvert.SerializeObject(holder,
                 new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
 
-            SuggestResponseDtoConverter.Pool.Return(suggestions);
-
             return serializedResult;
         }
 

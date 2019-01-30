@@ -8,8 +8,6 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         private readonly InMemoryRepository _repo;
         private readonly AccountData[] _accounts;
 
-        public static readonly ObjectPool<SuggestResponseDto> Pool = new ObjectPool<SuggestResponseDto>(100);
-
         public SuggestResponseDtoConverter(InMemoryRepository repo)
         {
             _repo = repo;
@@ -20,7 +18,7 @@ namespace HighLoadCupV3.Model.Filters.Suggest
         {
             var acc = _accounts[id];
 
-            var res = Pool.Rent();
+            var res = new SuggestResponseDto();
 
             res.Id = id;
             res.Email = acc.Email;

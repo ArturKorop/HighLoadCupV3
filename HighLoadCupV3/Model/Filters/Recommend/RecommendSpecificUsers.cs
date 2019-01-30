@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using HighLoadCupV3.Model.Dto;
 using HighLoadCupV3.Model.InMemory;
 
@@ -13,13 +12,13 @@ namespace HighLoadCupV3.Model.Filters.Recommend
         {
         }
 
-        public override List<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
+        public override IEnumerable<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
         {
             var targetAcc = _accounts[targetId];
             var targetInterests = targetAcc.Interests;
             if (targetInterests == null)
             {
-                return ResponseListPool.Rent();
+                yield break;
             }
 
             var interestCount = targetInterests.Length;
@@ -28,13 +27,12 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             var buckets = new List<Tuple<int, int>>[6 * targetInterests.Length];
             for (int i = 0; i < buckets.Length; i++)
             {
-                buckets[i] = ListTuplePool.Rent();
+                buckets[i] = new List<Tuple<int, int>>();
             }
 
             FillBuckets(buckets, ids, targetInterests, interestCount, targetBirth, targetAcc.Sex == 0 ? (byte)1 : (byte)0);
 
-            var recommendations = ResponseListPool.Rent();
-
+            var count = 0;
             for (int i = buckets.Length - 1; i >= 0; i--)
             {
                 var current = buckets[i];
@@ -45,24 +43,17 @@ namespace HighLoadCupV3.Model.Filters.Recommend
                     if (current[t].Item1 != prevId)
                     {
                         prevId = current[t].Item1;
-                        recommendations.Add(_converter.Convert(prevId));
 
-                        if (recommendations.Count == limit)
+                        yield return _converter.Convert(prevId);
+
+                        count++;
+                        if (count == limit)
                         {
-                            break;
+                            yield break;
                         }
                     }
                 }
-
-                ListTuplePool.Return(current);
-
-                if (recommendations.Count == limit)
-                {
-                    break;
-                }
             }
-
-            return recommendations;
         }
 
         protected void FillBuckets(List<Tuple<int, int>>[] buckets, IEnumerable<int> ids, byte[] targetInterests, int interestCount, int targetBirth, byte desiredSex)

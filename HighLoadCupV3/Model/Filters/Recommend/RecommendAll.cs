@@ -13,24 +13,24 @@ namespace HighLoadCupV3.Model.Filters.Recommend
         {
         }
 
-        public override List<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
+        public override IEnumerable<RecommendResponseDto> Recommend(int targetId, int limit, IEnumerable<int> ids)
         {
             var targetAcc = _accounts[targetId];
             var targetInterests = targetAcc.Interests;
             if (targetInterests == null)
             {
-                return ResponseListPool.Rent();
+                yield break;
             }
 
             var targetBirth = targetAcc.Birth;
 
-            var recommendations = ResponseListPool.Rent();
-            var desiredSex = targetAcc.Sex == 0 ? (byte) 1 : (byte) 0;
+            var desiredSex = targetAcc.Sex == 0 ? (byte)1 : (byte)0;
 
             var from = 5 + desiredSex * 6;
             var to = desiredSex * 6;
 
 
+            var count = 0;
             for (int i = from; i >= to; i--)
             {
                 var current = GetBuckets(i, targetInterests, targetBirth);
@@ -43,35 +43,19 @@ namespace HighLoadCupV3.Model.Filters.Recommend
                         if (current[j][t].Item1 != prevId)
                         {
                             prevId = current[j][t].Item1;
-                            recommendations.Add(_converter.Convert(prevId));
 
-                            if (recommendations.Count == limit)
+                            yield return _converter.Convert(prevId);
+
+                            count++;
+                            if (count == limit)
                             {
-                                break;
+                                yield break;
                             }
                         }
                     }
-
-                    ListTuplePool.Return(current[j]);
-
-                    if (recommendations.Count == limit)
-                    {
-                        for (int k = j-1; k >= 0; k--)
-                        {
-                            ListTuplePool.Return(current[k]);
-                        }
-
-                        break;
-                    }
                 }
 
-                if (recommendations.Count == limit)
-                {
-                    break;
-                }
             }
-
-            return recommendations;
         }
 
         protected List<Tuple<int, int>>[] GetBuckets(int premiumStatusSexKey, byte[] targetInterests, int targetBirth)
@@ -79,7 +63,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
             var priorityBucketsForInterests = new List<Tuple<int, int>>[targetInterests.Length];
             for (int i = 0; i < targetInterests.Length; i++)
             {
-                priorityBucketsForInterests[i] = ListTuplePool.Rent();
+                priorityBucketsForInterests[i] = new List<Tuple<int, int>>();
             }
 
             foreach (var targetInterest in targetInterests)

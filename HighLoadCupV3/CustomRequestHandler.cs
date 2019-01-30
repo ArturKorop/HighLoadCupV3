@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 
 namespace HighLoadCupV3
 {
-    public class CustomRequestHandler
+    public partial class CustomRequestHandler
     {
         private static readonly JsonSerializer Serializer = new JsonSerializer();
         private const int TooMuchTimeNotifier = 5;
@@ -400,18 +400,6 @@ namespace HighLoadCupV3
             Holder.Instance.InMemory.NotifyAboutPost();
 
             return new ResponseData(202, EmptyValue);
-        }
-
-        public class ResponseData
-        {
-            public ResponseData(int statusCode, string content)
-            {
-                StatusCode = statusCode;
-                Content = content;
-            }
-
-            public int StatusCode { get; set; }
-            public string Content { get; set; }
         }
     }
 }

@@ -33,7 +33,7 @@ namespace HighLoadCupV3.Model.Filters.Recommend
                 return JsonConvert.SerializeObject(holder);
             }
 
-            List<RecommendResponseDto> recommendations;
+            IEnumerable<RecommendResponseDto> recommendations;
             if (key != null)
             {
                 var ids = Filter(key, value);
@@ -49,8 +49,6 @@ namespace HighLoadCupV3.Model.Filters.Recommend
 
             var serializedResult = JsonConvert.SerializeObject(holder,
                 new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-
-            RecommendImplBase.ResponseListPool.Return(recommendations);
 
             return serializedResult;
         }
