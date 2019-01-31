@@ -330,6 +330,7 @@ namespace HighLoadCupV3
             AccountUpdatDto dto;
             try
             {
+
                 using (var reader = new JsonTextReader(new StreamReader(request.Body)))
                 {
                     dto = Serializer.Deserialize<AccountUpdatDto>(reader);
@@ -366,12 +367,29 @@ namespace HighLoadCupV3
 
         public ResponseData UpdateLikes(HttpRequest request)
         {
-            var deserializer = new LikesUpdateDeserializer(Holder.Instance.InMemory);
-            var likes = deserializer.Deserialize(request.Body);
 
-            if(likes == null)
+            LikesUpdateDto dto;
+            try
+            {
+                using (var reader = new JsonTextReader(new StreamReader(request.Body)))
+                {
+                    dto = Serializer.Deserialize<LikesUpdateDto>(reader);
+                }
+            }
+            catch
             {
                 return _bad;
+            }
+
+            var likes = dto.Likes;
+
+            var repo = Holder.Instance.InMemory;
+            foreach (var like in likes)
+            {
+                if(!repo.IsExistedAccountId(like.Likee) || !repo.IsExistedAccountId(like.Liker))
+                {
+                    return _bad;
+                }
             }
 
             var buffer = Holder.Instance.InMemory.LikesBuffer;

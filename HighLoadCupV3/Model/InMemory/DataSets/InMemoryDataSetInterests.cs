@@ -6,7 +6,7 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
 {
     public class InMemoryDataSetInterests : InMemoryDataSetBase
     {
-        private readonly List<List<int>[]> _dataForRecommend = new List<List<int>[]>();
+        private List<HashSet<int>[]> _dataForRecommendSet = new List<HashSet<int>[]>();
         private readonly Dictionary<string, byte> _valueToIndex = new Dictionary<string, byte>();
         private readonly List<string> _indexToValue = new List<string>();
 
@@ -29,12 +29,12 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
                         _indexToValue.Add(value);
                         _set.Add(new HashSet<int>());
 
-                        _dataForRecommend.Add(new List<int>[12]);
+                        _dataForRecommendSet.Add(new HashSet<int>[12]);
                         index = _maxIndex;
 
                         for (int i = 0; i < 12; i++)
                         {
-                            _dataForRecommend[index][i] = new List<int>();
+                            _dataForRecommendSet[index][i] = new HashSet<int>();
                         }
 
                         _maxIndex++;
@@ -43,7 +43,7 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
                     _set[index].Add(id);
 
                     var key = GenerateBucketKey(premium, status, sex);
-                    _dataForRecommend[index][key].Add(id);
+                    _dataForRecommendSet[index][key].Add(id);
 
                     yield return index;
                 }
@@ -58,12 +58,12 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
                         _indexToValue.Add(value);
                         _sorted.Add(new List<int>());
 
-                        _dataForRecommend.Add(new List<int>[12]);
+                        _dataForRecommendSet.Add(new HashSet<int>[12]);
                         index = _maxIndex;
 
                         for (int i = 0; i < 12; i++)
                         {
-                            _dataForRecommend[index][i] = new List<int>();
+                            _dataForRecommendSet[index][i] = new HashSet<int>();
                         }
 
                         _maxIndex++;
@@ -72,7 +72,7 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
                     _sorted[index].Add(id);
 
                     var key = GenerateBucketKey(premium, status, sex);
-                    _dataForRecommend[index][key].Add(id);
+                    _dataForRecommendSet[index][key].Add(id);
 
                     yield return index;
                 }
@@ -133,7 +133,7 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             foreach (var index in previousIndexes)
             {
                 _set[index].Remove(id);
-                _dataForRecommend[index][key].Remove(id);
+                _dataForRecommendSet[index][key].Remove(id);
             }
 
             return Add(values, id, premium, status, sex, true);
@@ -144,13 +144,13 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             var prevKey = GenerateBucketKey(prevPremium, prevStatus, prevSex);
             foreach (var index in indexes)
             {
-                _dataForRecommend[index][prevKey].Remove(id);
+                _dataForRecommendSet[index][prevKey].Remove(id);
             }
 
             var newKey = GenerateBucketKey(premium, status, sex);
             foreach (var index in indexes)
             {
-                _dataForRecommend[index][newKey].Add(id);
+                _dataForRecommendSet[index][newKey].Add(id);
             }
         }
 
@@ -164,9 +164,9 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _valueToIndex[value];
         }
 
-        public List<int> GetDataForRecommend(int index, int key)
+        public HashSet<int> GetDataForRecommend(int index, int key)
         {
-            return _dataForRecommend[index][key];
+            return _dataForRecommendSet[index][key];
         }
 
         public IEnumerable<List<int>> GetSortedIds(IEnumerable<string> values)

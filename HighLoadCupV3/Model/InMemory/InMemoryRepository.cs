@@ -71,6 +71,10 @@ namespace HighLoadCupV3.Model.InMemory
                     sw.Start();
                     Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started preparation for POST");
 
+                    _swMemory = new System.Timers.Timer(1000);
+                    _swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
+                    _swMemory.Start();
+
                     StatusData.PrepareForUpdates();
                     CityData.PrepareForUpdates();
                     CountryData.PrepareForUpdates();
@@ -85,7 +89,13 @@ namespace HighLoadCupV3.Model.InMemory
                     BirthYearData.PrepareForUpdates();
                     InterestsData.PrepareForUpdates();
                     JoinedYearData.PrepareForUpdates();
-                    
+
+                    TotalMemoryHelper.Show();
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                    GC.Collect();
+                    GC.WaitForFullGCApproach();
+                    TotalMemoryHelper.Show();
+
 
                     Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Finished preparation for POST in {sw.ElapsedMilliseconds} ms");
                 });
@@ -101,9 +111,6 @@ namespace HighLoadCupV3.Model.InMemory
                 Task.Run(() =>
                 {
                     Console.WriteLine( $"{DateTime.Now.ToLongTimeString()} Started updates after all POST [{_postCount}]");
-                    _swMemory = new System.Timers.Timer(1000);
-                    _swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
-                    _swMemory.Start();
 
                     var sw = new Stopwatch();
                     sw.Start();
