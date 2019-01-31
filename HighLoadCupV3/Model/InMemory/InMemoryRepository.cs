@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime;
+using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using HighLoadCupV3.Model.InMemory.DataSets;
@@ -20,7 +22,7 @@ namespace HighLoadCupV3.Model.InMemory
 
         public InMemoryDataSetSName SNameData { get; } = new InMemoryDataSetSName();
 
-        public InMemoryDataSetShortWithNotExisted CityData { get; } = new InMemoryDataSetShortWithNotExisted(string.Empty);
+        public InMemoryDataSetCity CityData { get; } = new InMemoryDataSetCity(string.Empty);
         public InMemoryDataSetCountry CountryData { get; } = new InMemoryDataSetCountry(string.Empty);
 
         public InMemoryDataSetByteWithNotExisted<string> FNameData { get; } = new InMemoryDataSetByteWithNotExisted<string>(string.Empty);
@@ -42,30 +44,64 @@ namespace HighLoadCupV3.Model.InMemory
             EmailsStorage = new EmailsStorage(this);
             LikesBuffer = new LikesBuffer(accountsCount, this);
 #if  DEBUG
-            _desiredPostCount = 10000;
+            _desiredPostCount = 5;
+            _desiredGetCount = 2;
 #else
             _desiredPostCount = accountsCount < 100000 ? 10000 : 90000;
+            _desiredGetCount = accountsCount < 100000 ? 3000 : 27000;
 #endif
         }
 
         private readonly int _desiredPostCount;
+        private readonly int _desiredGetCount;
 
         private int _postCount = 0;
-        private static Timer _swMemory;
+        private int _getCount = 0;
+        private static System.Timers.Timer _swMemory;
+
+        public void NotifyAboutGet()
+        {
+            Interlocked.Increment(ref _getCount);
+
+            if (_getCount == _desiredGetCount)
+            {
+                Task.Run(() =>
+                {
+                    var sw = new Stopwatch();
+                    sw.Start();
+                    Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started preparation for POST");
+
+                    StatusData.PrepareForUpdates();
+                    CityData.PrepareForUpdates();
+                    CountryData.PrepareForUpdates();
+                    SNameData.PrepareForUpdates();
+
+                    FNameData.PrepareForUpdates();
+                    SexData.PrepareForUpdates();
+                    PremiumData.PrepareForUpdates();
+                    CodeData.PrepareForUpdates();
+
+                    DomainData.PrepareForUpdates();
+                    BirthYearData.PrepareForUpdates();
+                    InterestsData.PrepareForUpdates();
+                    JoinedYearData.PrepareForUpdates();
+                    
+
+                    Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Finished preparation for POST in {sw.ElapsedMilliseconds} ms");
+                });
+            }
+        }
 
         public void NotifyAboutPost()
         {
-            lock (this)
-            {
-                _postCount++;
-            }
+            Interlocked.Increment(ref _postCount);
 
             if (_postCount == _desiredPostCount)
             {
                 Task.Run(() =>
                 {
                     Console.WriteLine( $"{DateTime.Now.ToLongTimeString()} Started updates after all POST [{_postCount}]");
-                    _swMemory = new Timer(1000);
+                    _swMemory = new System.Timers.Timer(1000);
                     _swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
                     _swMemory.Start();
 
@@ -103,13 +139,26 @@ namespace HighLoadCupV3.Model.InMemory
 
         public void CreateMainIndexes(bool afterPost, Stopwatch sw)
         {
-
-            //_swMemory = new Timer(1000);
-            //_swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
-            //_swMemory.Start();
-
             if (afterPost)
             {
+                FNameData.PrepareForSort();
+                SNameData.PrepareForSort();
+                SexData.PrepareForSort();
+                StatusData.PrepareForSort();
+                CityData.PrepareForSort();
+                CountryData.PrepareForSort();
+                CodeData.PrepareForSort();
+                DomainData.PrepareForSort();
+                BirthYearData.PrepareForSort();
+                InterestsData.PrepareForSort();
+                JoinedYearData.PrepareForSort();
+                PremiumData.PrepareForSort();
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
+                GC.WaitForFullGCApproach();
+
+                Console.WriteLine($"Preparation for sort done in [{sw.ElapsedMilliseconds}] ms");
+
                 Task.Run(() =>
                 {
                     LikesBuffer.FillLikes();
@@ -145,11 +194,6 @@ namespace HighLoadCupV3.Model.InMemory
 
             Task.WaitAll(preparationForGroup1, preparationForGroup2, preparationForGroup3);
             Console.WriteLine($"Ids sorting done in [{sw.ElapsedMilliseconds}] ms");
-            //Parallel.Invoke(() => EmailsStorage.SortAndPropagate(),
-            //    () => FNameData.Sort(), () => SNameData.Sort(), () => SexData.Sort(),
-            //    () => StatusData.Sort(), () => CityData.Sort(), () => CountryData.Sort(),
-            //    () => CodeData.Sort(), () => DomainData.Sort(), () => BirthYearData.Sort(),
-            //    () => InterestsData.Sort(), () => JoinedYearData.Sort(), () => PremiumData.Sort());
 
             Holder.Instance.Group.CleanCacheAndCreateNewCache();
             Console.WriteLine($"Cache recreating done in [{sw.ElapsedMilliseconds}] ms");

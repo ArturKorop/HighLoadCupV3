@@ -4,12 +4,9 @@ using System.Linq;
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
     // For Premium
-    public class InMemoryDataSetPremium
+    public class InMemoryDataSetPremium : InMemoryDataSetBase
     {
         private const int Count = 3;
-        private readonly List<List<int>> _sorted = new List<List<int>>();
-
-        private readonly IComparer<int> _comparer = new DescComparer();
 
         public InMemoryDataSetPremium()
         {
@@ -19,21 +16,42 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             }
         }
 
-        public void Add(byte value, int id, bool expired)
+        public void Add(byte value, int id, bool expired, bool afterPost)
         {
-            if (value == 1)
+            if (afterPost)
             {
-                _sorted[1].Add(id);
-            }
-            else
-            {
-                if (!expired)
+                if (value == 1)
                 {
-                    _sorted[0].Add(id);
+                    _set[1].Add(id);
                 }
                 else
                 {
-                    _sorted[2].Add(id);
+                    if (!expired)
+                    {
+                        _set[0].Add(id);
+                    }
+                    else
+                    {
+                        _set[2].Add(id);
+                    }
+                }
+            }
+            else
+            {
+                if (value == 1)
+                {
+                    _sorted[1].Add(id);
+                }
+                else
+                {
+                    if (!expired)
+                    {
+                        _sorted[0].Add(id);
+                    }
+                    else
+                    {
+                        _sorted[2].Add(id);
+                    }
                 }
             }
         }
@@ -58,30 +76,25 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _sorted.Select(x => x.Count);
         }
 
-        public void Sort()
-        {
-            _sorted.ForEach(x => x.Sort(_comparer));
-        }
-
         public void Update(byte value, int id, byte previousValue, bool previousExpired, bool currentExpired)
         {
             if (previousValue == 1)
             {
-                _sorted[1].Remove(id);
+                _set[1].Remove(id);
             }
             else
             {
                 if (!previousExpired)
                 {
-                    _sorted[0].Remove(id);
+                    _set[0].Remove(id);
                 }
                 else
                 {
-                    _sorted[2].Remove(id);
+                    _set[2].Remove(id);
                 }
             }
 
-            Add(value, id, currentExpired);
+            Add(value, id, currentExpired, true);
         }
 
         public List<int> GetSortedIds(byte value, bool expired)

@@ -4,13 +4,13 @@ using System.Linq;
 
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
-    public class InMemoryDataSetCountry
+    public class InMemoryDataSetCountry : InMemoryDataSetBase
     {
-        private readonly List<List<int>> _sorted = new List<List<int>>();
         private readonly Dictionary<string, byte> _valueToIndex = new Dictionary<string, byte>();
         private readonly List<string> _indexToValue = new List<string>();
 
-        private readonly List<int> _notDefaultSorted = new List<int>();
+        private List<int> _notDefaultSorted = new List<int>();
+        private HashSet<int> _notDefaultSet = new HashSet<int>();
 
         private byte[] _indexToSortedIndex;
         private string[] _sortedIndexToValue;
@@ -19,8 +19,6 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
         private byte _maxIndex = 1;
         public readonly string DefaultValue;
         public readonly byte DefaultIndex = 0;
-
-        private readonly IComparer<int> _comparer = new DescComparer();
 
         public InMemoryDataSetCountry(string defaultValue)
         {
@@ -36,24 +34,47 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _valueToIndex[value];
         }
 
-        public byte Add(string value, int id)
+        public byte Add(string value, int id, bool afterPost)
         {
-            if (!_valueToIndex.TryGetValue(value, out var index))
+            if (afterPost)
             {
-                _valueToIndex[value] = _maxIndex;
-                _indexToValue.Add(value);
-                _sorted.Add(new List<int>());
-                index = _maxIndex;
-                _maxIndex++;
-            }
+                if (!_valueToIndex.TryGetValue(value, out var index))
+                {
+                    _valueToIndex[value] = _maxIndex;
+                    _indexToValue.Add(value);
+                    _set.Add(new HashSet<int>());
+                    index = _maxIndex;
+                    _maxIndex++;
+                }
 
-            _sorted[index].Add(id);
-            if (value != DefaultValue)
+                _set[index].Add(id);
+                if (value != DefaultValue)
+                {
+                    _notDefaultSet.Add(id);
+                }
+
+                return index;
+            }
+            else
             {
-                _notDefaultSorted.Add(id);
-            }
 
-            return index;
+                if (!_valueToIndex.TryGetValue(value, out var index))
+                {
+                    _valueToIndex[value] = _maxIndex;
+                    _indexToValue.Add(value);
+                    _sorted.Add(new List<int>());
+                    index = _maxIndex;
+                    _maxIndex++;
+                }
+
+                _sorted[index].Add(id);
+                if (value != DefaultValue)
+                {
+                    _notDefaultSorted.Add(id);
+                }
+
+                return index;
+            }
         }
 
         public string GetStatistics(bool full)
@@ -91,9 +112,9 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _sortedIndexToValue[sortedIndex];
         }
 
-        public void Sort()
+        public override void Sort()
         {
-            _sorted.ForEach(x => x.Sort(_comparer));
+            base.Sort();
             _notDefaultSorted.Sort(_comparer);
 
             var sortedValueToIndexPairs = _valueToIndex.OrderBy(x => x.Key, StringComparer.Ordinal).ToArray();
@@ -110,15 +131,29 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             }
         }
 
+        public override void PrepareForSort()
+        {
+            base.PrepareForSort();
+            _notDefaultSorted = _notDefaultSet.ToList();
+            _notDefaultSet = null;
+        }
+
+        public override void PrepareForUpdates()
+        {
+            base.PrepareForUpdates();
+            _notDefaultSet = _notDefaultSorted.ToHashSet();
+            _notDefaultSorted = null;
+        }
+
         public byte UpdateOrAdd(string value, int id, byte previousIndex)
         {
-            _sorted[previousIndex].Remove(id);
+            _set[previousIndex].Remove(id);
             if (previousIndex != DefaultIndex)
             {
-                _notDefaultSorted.Remove(id);
+                _notDefaultSet.Remove(id);
             }
 
-            return Add(value, id);
+            return Add(value, id, true);
         }
 
         public bool ContainsValue(string key)

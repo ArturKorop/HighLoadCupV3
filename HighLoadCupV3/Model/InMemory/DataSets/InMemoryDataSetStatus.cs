@@ -4,10 +4,9 @@ using System.Linq;
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
     // For Status
-    public class InMemoryDataSetStatus
+    public class InMemoryDataSetStatus : InMemoryDataSetBase
     {
         private const int Count = 3;
-        private readonly List<List<int>> _sorted = new List<List<int>>();
 
         private const string Free = "свободны";
         private const string Busy = "заняты";
@@ -17,8 +16,6 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
         private readonly byte[] _sortedIndexes = {1, 0, 2};
         private readonly string[] _sortedValues = {Hard, Busy, Free};
 
-        private readonly IComparer<int> _comparer = new DescComparer();
-
         public InMemoryDataSetStatus()
         {
             for (int i = 0; i < Count; i++)
@@ -27,9 +24,22 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             }
         }
 
-        public void Add(byte value, int id)
+        public void Add(byte value, int id, bool afterPost)
         {
-            _sorted[value].Add(id);
+            if (afterPost)
+            {
+                _set[value].Add(id);
+            }
+            else
+            {
+                _sorted[value].Add(id);
+            }
+        }
+
+        public void Update(byte value, int id, byte previousValue)
+        {
+            _set[previousValue].Remove(id);
+            _set[value].Add(id);
         }
 
         public string GetStatistics(bool full)
@@ -50,17 +60,6 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
         public IEnumerable<int> GetCountOfEachEntry()
         {
             return _sorted.Select(x => x.Count);
-        }
-
-        public void Sort()
-        {
-            _sorted.ForEach(x => x.Sort(_comparer));
-        }
-
-        public void Update(byte value, int id, byte previousValue)
-        {
-            _sorted[previousValue].Remove(id);
-            Add(value, id);
         }
 
         public bool ContainsValue(string key)

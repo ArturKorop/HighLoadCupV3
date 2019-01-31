@@ -23,7 +23,7 @@ namespace HighLoadCupV3.Model
             Console.WriteLine("Fill main data");
             foreach (var dto in retriever.ReadDto(path, extractPath, true))
             {
-                updater.AddNewAccount(dto);
+                updater.AddNewAccount(dto, false);
                 count++;
                 if (count % notificationCount == 0)
                 {

@@ -1,13 +1,9 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using HighLoadCupV3.Model;
 using HighLoadCupV3.Model.Dto;
-using HighLoadCupV3.Model.Exceptions;
-using HighLoadCupV3.Model.InMemory;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 
@@ -67,78 +63,87 @@ namespace HighLoadCupV3
         private ResponseData GetResponseData(HttpRequest request)
         {
             var path = request.Path.Value;
+            ResponseData data = null;
             if (request.Method == "POST")
             {
                 switch (path)
                 {
                     case AccountsNew:
-                        return New(request);
+                        data = New(request);
+                        break;
                     case AccountsLikes:
-                        return UpdateLikes(request);
+                        data = UpdateLikes(request);
+                        break;
                     default:
+                    {
+                        if (path.Length > 10)
                         {
-                            if (path.Length > 10)
-                            {
-                                var updateIdSubstring = path.Substring(10, path.Length - 11);
-                                return Update(updateIdSubstring, request);
-                            }
-                            else
-                            {
-                                return AllOtherPostRequests();
-                            }
+                            var updateIdSubstring = path.Substring(10, path.Length - 11);
+                            data = Update(updateIdSubstring, request);
+                            break;
                         }
+                        else
+                        {
+                            data = AllOtherPostRequests();
+                            break;
+                        }
+                    }
                 }
+
+                Holder.Instance.InMemory.NotifyAboutPost();
             }
             else
             {
                 switch (path)
                 {
                     case AccountsFilter:
-                        return Filter(request);
+                        data = Filter(request);
+                        break;
                     case AccountsGroup:
-                        return Group(request);
+                        data = Group(request);
+                        break;
                     default:
+                    {
+                        if (path.StartsWith(Accounts))
                         {
-                            if (path.StartsWith(Accounts))
+                            if (path.EndsWith(AccountsRecommend))
                             {
-                                if (path.EndsWith(AccountsRecommend))
+                                var from = Accounts.Length;
+                                var to = path.Length - from - AccountsRecommend.Length;
+                                if (to > 0)
                                 {
-                                    var from = Accounts.Length;
-                                    var to = path.Length - from - AccountsRecommend.Length;
-                                    if (to > 0)
-                                    {
-                                        return Recommend(path.Substring(from, to), request);
-                                    }
-                                }
-                                else if (path.EndsWith(AccountsSuggest))
-                                {
-                                    var from = Accounts.Length;
-                                    var to = path.Length - from - AccountsSuggest.Length;
-                                    if (to > 0)
-                                    {
-                                        return Suggest(path.Substring(from, to), request);
-                                    }
+                                    data = Recommend(path.Substring(from, to), request);
+                                    break;
                                 }
                             }
-
-                            return AllOtherGetRequests();
+                            else if (path.EndsWith(AccountsSuggest))
+                            {
+                                var from = Accounts.Length;
+                                var to = path.Length - from - AccountsSuggest.Length;
+                                if (to > 0)
+                                {
+                                    data = Suggest(path.Substring(from, to), request);
+                                    break;
+                                }
+                            }
                         }
+
+                        data = AllOtherGetRequests();
+                        break;
+                    }
                 }
+
+                Holder.Instance.InMemory.NotifyAboutGet();
             }
+
+            return data;
         }
 
         public ResponseData Filter(HttpRequest request)
         {
-            //var sw = new Stopwatch();
-            //sw.Start();
-
             var filter = Holder.Instance.Filter;
             var queries = request.Query.ToDictionary(x => x.Key, x => x.Value.First());
             var data = filter.FilterBy(queries);
-            //if (sw.ElapsedMilliseconds >= TooMuchTimeNotifier)
-            //{
-            //    Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Query [{Request.QueryString.Value}] in {sw.ElapsedMilliseconds} ms");
-            //}
 
             if (data == null)
             {
@@ -150,9 +155,6 @@ namespace HighLoadCupV3
 
         public ResponseData Group(HttpRequest request)
         {
-            //var sw = new Stopwatch();
-            //sw.Start();
-
             var filter = Holder.Instance.Group;
             var dict = request.Query.ToDictionary(x => x.Key, x => x.Value.First());
             var parser = Holder.Instance.GroupQueryParser;
@@ -162,11 +164,6 @@ namespace HighLoadCupV3
             }
 
             var data = filter.GroupBy(groupQuery);
-            //if (sw.ElapsedMilliseconds >= TooMuchTimeNotifier)
-            //{
-            //    Console.WriteLine(
-            //        $"{DateTime.Now.ToLongTimeString()}Query [{request.QueryString.Value}] in {sw.ElapsedMilliseconds} ms");
-            //}
 
             if (data == null)
             {
@@ -178,10 +175,6 @@ namespace HighLoadCupV3
 
         public ResponseData Recommend(string id, HttpRequest request)
         {
-            //return _wrong;
-            //var sw = new Stopwatch();
-            //sw.Start();
-
             if (!int.TryParse(id, out var idValue))
             {
                 return _bad;
@@ -227,18 +220,12 @@ namespace HighLoadCupV3
             }
 
             var data = Holder.Instance.Recommend.GetRecommendations(idValue, key, value, limit);
-            //if (sw.ElapsedMilliseconds >= TooMuchTimeNotifier)
-            //{
-            //    Console.WriteLine(
-            //        $"{DateTime.Now.ToLongTimeString()}Query [{Request.QueryString.Value}] in {sw.ElapsedMilliseconds} ms");
-            //}
 
             return new ResponseData(200, data);
         }
 
         public ResponseData Suggest(string id, HttpRequest request)
         {
-            //return _wrong;
             if (!int.TryParse(id, out var idValue))
             {
                 return _bad;
@@ -295,7 +282,6 @@ namespace HighLoadCupV3
 
         public ResponseData AllOtherPostRequests()
         {
-            Holder.Instance.InMemory.NotifyAboutPost();
             return _notFound;
         }
 
@@ -311,14 +297,12 @@ namespace HighLoadCupV3
             }
             catch
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
             }
 
             var isSuccessfulUpdate = Holder.Instance.Updater.AddAndValidateNewAccount(dto);
             if (!isSuccessfulUpdate)
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
             }
 
@@ -333,7 +317,6 @@ namespace HighLoadCupV3
                 }
             }
 
-            Holder.Instance.InMemory.NotifyAboutPost();
             return new ResponseData(201, EmptyValue);
         }
 
@@ -341,7 +324,6 @@ namespace HighLoadCupV3
         {
             if (!int.TryParse(id, out var idValue))
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _notFound;
             }
 
@@ -355,7 +337,6 @@ namespace HighLoadCupV3
             }
             catch
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
             }
 
@@ -371,17 +352,14 @@ namespace HighLoadCupV3
                     }
                 }
 
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return new ResponseData(202, EmptyValue);
             }
             if (updateCode == 1)
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _notFound;
             }
             else
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
             }
         }
@@ -393,7 +371,6 @@ namespace HighLoadCupV3
 
             if(likes == null)
             {
-                Holder.Instance.InMemory.NotifyAboutPost();
                 return _bad;
             }
 
@@ -403,211 +380,7 @@ namespace HighLoadCupV3
                 buffer.AddLikes(likePair.Liker, likePair.Likee, likePair.TimeStamp);
             }
 
-            Holder.Instance.InMemory.NotifyAboutPost();
-
             return new ResponseData(202, EmptyValue);
-        }
-    }
-
-    public class LikesUpdateDeserializer
-    {
-        private readonly InMemoryRepository _repo;
-
-        public LikesUpdateDeserializer(InMemoryRepository repo)
-        {
-            _repo = repo;
-        }
-
-
-        public List<LikeUpdateDto> Deserialize(Stream stream)
-        {
-            var result = new List<LikeUpdateDto>();
-            using (var reader = new StreamReader(stream))
-            {
-                var c = reader.Read();
-                while (c != -1)
-                {
-                    if (c == '[')
-                    {
-                        break;
-                    }
-
-                    c = reader.Read();
-                }
-
-                var buffer = new List<char>();
-
-                while (c >= 0)
-                {
-                    c = reader.Read();
-                    if (c == '{')
-                    {
-                        var dto = new LikeUpdateDto();
-                        c = reader.Read();
-
-                        while(c != '"')
-                        {
-                            c = reader.Read();
-                        }
-
-                        buffer.Clear();
-                        c =  reader.Read();
-                        while(c != '"')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-                        var type = new string(buffer.ToArray());
-
-                        while (c != ':')
-                        {
-                            c = reader.Read();
-                        }
-
-                        c = reader.Read();
-                        buffer.Clear();
-                        while (c != ',')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-                        if (!int.TryParse(buffer.ToArray(), out int value))
-                        {
-                            return null;
-                        }
-
-                        dto = SetValue(type, value, dto);
-                        if(dto == null)
-                        {
-                            return null;
-                        }
-
-                        // Second line
-
-                        while (c != '"')
-                        {
-                            c = reader.Read();
-                        }
-
-                        buffer.Clear();
-                        c = reader.Read();
-                        while (c != '"')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-                        type = new string(buffer.ToArray());
-
-                        while (c != ':')
-                        {
-                            c = reader.Read();
-                        }
-
-                        buffer.Clear();
-                        c = reader.Read();
-                        while (c != ',')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-                        if (!int.TryParse(buffer.ToArray(), out int value2))
-                        {
-                            return null;
-                        }
-
-                        dto = SetValue(type, value2, dto);
-                        if(dto == null)
-                        {
-                            return null;
-                        }
-
-                        // Third line
-
-                        while (c != '"')
-                        {
-                            c = reader.Read();
-                        }
-
-                        buffer.Clear();
-                        c = reader.Read();
-                        while (c != '"')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-                        type = new string(buffer.ToArray());
-
-                        while (c != ':')
-                        {
-                            c = reader.Read();
-                        }
-
-                        buffer.Clear();
-                        c = reader.Read();
-                        while (c != '}')
-                        {
-                            buffer.Add((char)c);
-                            c = reader.Read();
-                        }
-
-
-                        if (!int.TryParse(buffer.ToArray(), out int value3))
-                        {
-                            return null;
-                        }
-
-                        dto = SetValue(type, value3, dto);
-                        if (dto == null)
-                        {
-                            return null;
-                        }
-
-                        result.Add(dto);
-                    }
-                }
-            }
-
-            return result;
-
-        }
-
-        private LikeUpdateDto SetValue(string type, int value, LikeUpdateDto dto)
-        {
-            switch (type)
-            {
-                case "ts":
-                    {
-                        dto.TimeStamp = value;
-                        return dto;
-                    }
-                case "liker":
-                    {
-                        if (!_repo.IsExistedAccountId(value))
-                        {
-                            return null;
-                        }
-
-                        dto.Liker = value;
-                        return dto;
-                    }
-                case "likee":
-                    {
-                        if (!_repo.IsExistedAccountId(value))
-                        {
-                            return null;
-                        }
-
-                        dto.Likee = value;
-                        return dto;
-                    }
-                default:
-                    return null;
-            }
         }
     }
 }

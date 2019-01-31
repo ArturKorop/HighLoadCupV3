@@ -5,19 +5,17 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
 {
     // For FNameIndex
     // For CodeIndex
-    public class InMemoryDataSetByteWithNotExisted<T>
+    public class InMemoryDataSetByteWithNotExisted<T> : InMemoryDataSetBase
     {
-        protected List<List<int>> _sorted;
         protected Dictionary<T, byte> _valueToIndex = new Dictionary<T, byte>();
         protected List<T> _indexToValue = new List<T>();
+        protected HashSet<int> _notDefaultSet = new HashSet<int>();
 
-        private readonly List<int> _notDefaultSorted = new List<int>();
+        private List<int> _notDefaultSorted = new List<int>();
 
         private byte _maxIndex = 1;
         public readonly byte DefaultIndex = 0;
         public readonly T DefaultValue;
-
-        private readonly IComparer<int> _comparer = new DescComparer();
 
         public InMemoryDataSetByteWithNotExisted(T defaultValue)
         {
@@ -35,21 +33,42 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _valueToIndex[value];
         }
 
-        public byte Add(T value, int id)
+        public byte Add(T value, int id, bool afterPost)
         {
-            if (!_valueToIndex.TryGetValue(value, out var index))
+            byte index;
+            if (afterPost)
             {
-                _valueToIndex[value] = _maxIndex;
-                _indexToValue.Add(value);
-                _sorted.Add(new List<int>());
-                index = _maxIndex;
-                _maxIndex++;
-            }
+                if (!_valueToIndex.TryGetValue(value, out index))
+                {
+                    _valueToIndex[value] = _maxIndex;
+                    _indexToValue.Add(value);
+                    _set.Add(new HashSet<int>());
+                    index = _maxIndex;
+                    _maxIndex++;
+                }
 
-            _sorted[index].Add(id);
-            if (!value.Equals(DefaultValue))
+                _set[index].Add(id);
+                if (!value.Equals(DefaultValue))
+                {
+                    _notDefaultSet.Add(id);
+                }
+            }
+            else
             {
-                _notDefaultSorted.Add(id);
+                if (!_valueToIndex.TryGetValue(value, out index))
+                {
+                    _valueToIndex[value] = _maxIndex;
+                    _indexToValue.Add(value);
+                    _sorted.Add(new List<int>());
+                    index = _maxIndex;
+                    _maxIndex++;
+                }
+
+                _sorted[index].Add(id);
+                if (!value.Equals(DefaultValue))
+                {
+                    _notDefaultSorted.Add(id);
+                }
             }
 
             return index;
@@ -80,21 +99,35 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _indexToValue[index];
         }
 
-        public void Sort()
+        public override void Sort()
         {
-            _sorted.ForEach(x => x.Sort(_comparer));
+            base.Sort();
             _notDefaultSorted.Sort(_comparer);
+        }
+
+        public override void PrepareForSort()
+        {
+            base.PrepareForSort();
+            _notDefaultSorted = _notDefaultSet.ToList();
+            _notDefaultSet = null;
+        }
+
+        public override void PrepareForUpdates()
+        {
+            base.PrepareForUpdates();
+            _notDefaultSet = new HashSet<int>(_notDefaultSorted);
+            _notDefaultSorted = null;
         }
 
         public byte UpdateOrAdd(T value, int id, byte previousIndex)
         {
-            _sorted[previousIndex].Remove(id);
+            _set[previousIndex].Remove(id);
             if (!previousIndex.Equals(DefaultIndex))
             {
-                _notDefaultSorted.Remove(id);
+                _notDefaultSet.Remove(id);
             }
 
-            return Add(value, id);
+            return Add(value, id, true);
         }
 
         public bool ContainsValue(T key)

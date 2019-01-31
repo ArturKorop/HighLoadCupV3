@@ -22,18 +22,16 @@ namespace HighLoadCupV3.Model
             if (_inMemory.IsExistedAccountId(dto.Id))
             {
                 return false;
-                //throw new InvalidUpdateException($"Account {dto.Id} already existed");
             }
 
             if (_inMemory.Emails.Contains(dto.Email))
             {
                 return false;   
-                //throw new InvalidUpdateException($"Email {dto.Email} already existed");
             }
 
             lock (_inMemory)
             {
-                AddNewAccount(dto);
+                AddNewAccount(dto, true);
             }
 
             return true;
@@ -54,16 +52,16 @@ namespace HighLoadCupV3.Model
              }
         }
 
-        public void AddNewAccount(AccountDto dto)
+        public void AddNewAccount(AccountDto dto, bool afterPost)
         {
             var id = dto.Id;
             var acc = new AccountData {Id = id};
 
             //FName
-            acc.FNameIndex = _inMemory.FNameData.Add(dto.FName ?? string.Empty, id);
+            acc.FNameIndex = _inMemory.FNameData.Add(dto.FName ?? string.Empty, id, afterPost);
 
             //SName
-            acc.SNameIndex = _inMemory.SNameData.Add(dto.SName ?? string.Empty, id);
+            acc.SNameIndex = _inMemory.SNameData.Add(dto.SName ?? string.Empty, id, afterPost);
 
             //Code and phone
             int code = 0;
@@ -73,36 +71,36 @@ namespace HighLoadCupV3.Model
                 acc.Phone = dto.Phone;
             }
 
-            acc.CodeIndex = _inMemory.CodeData.Add(code, id);
+            acc.CodeIndex = _inMemory.CodeData.Add(code, id, afterPost);
 
             // Domain and Email
             int atIndex = dto.Email.IndexOf('@');
-            acc.DomainIndex = _inMemory.DomainData.Add(dto.Email.Substring(atIndex + 1), id);
+            acc.DomainIndex = _inMemory.DomainData.Add(dto.Email.Substring(atIndex + 1), id, afterPost);
             acc.Email = dto.Email;
             _inMemory.Emails.Add(dto.Email);
 
             //Sex
             acc.Sex = _inMemory.SexData.GetIndex(dto.Sex);
-            _inMemory.SexData.Add(acc.Sex, id);
+            _inMemory.SexData.Add(acc.Sex, id, afterPost);
 
             //Birth
             acc.Birth = dto.Birth;
             var birthYear = GetYearFromTs(dto.Birth);
-            acc.BirthYearIndex = _inMemory.BirthYearData.Add(birthYear, id);
+            acc.BirthYearIndex = _inMemory.BirthYearData.Add(birthYear, id, afterPost);
 
             // Country
-            acc.CountryIndex = _inMemory.CountryData.Add(dto.Country ?? string.Empty, id);
+            acc.CountryIndex = _inMemory.CountryData.Add(dto.Country ?? string.Empty, id, afterPost);
 
             //City
-            acc.CityIndex = _inMemory.CityData.Add(dto.City ?? string.Empty, id);
+            acc.CityIndex = _inMemory.CityData.Add(dto.City ?? string.Empty, id, afterPost);
 
             // Join
             var joinedYear = GetYearFromTs(dto.Joined);
-            acc.JoinedYearIndex = _inMemory.JoinedYearData.Add(joinedYear, id);
+            acc.JoinedYearIndex = _inMemory.JoinedYearData.Add(joinedYear, id, afterPost);
 
             // Status
             acc.Status = _inMemory.StatusData.GetIndex(dto.Status);
-            _inMemory.StatusData.Add(acc.Status, id);
+            _inMemory.StatusData.Add(acc.Status, id, afterPost);
 
             // Premium
             byte premium = 0;
@@ -117,12 +115,12 @@ namespace HighLoadCupV3.Model
             }
 
             acc.PremiumIndex = premium;  
-            _inMemory.PremiumData.Add(premium, id, acc.PremiumStart > 0);
+            _inMemory.PremiumData.Add(premium, id, acc.PremiumStart > 0, afterPost);
 
             // Interests
             if (dto.Interests != null)
             {
-                acc.Interests = _inMemory.InterestsData.Add(dto.Interests, id, acc.PremiumIndex, acc.Status, acc.Sex).ToArray();
+                acc.Interests = _inMemory.InterestsData.Add(dto.Interests, id, acc.PremiumIndex, acc.Status, acc.Sex, afterPost).ToArray();
                 Array.Sort(acc.Interests);
             }
 

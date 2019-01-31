@@ -4,9 +4,8 @@ using System.Linq;
 
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
-    public class InMemoryDataSetInterests
+    public class InMemoryDataSetInterests : InMemoryDataSetBase
     {
-        private readonly List<List<int>> _sorted = new List<List<int>>();
         private readonly List<List<int>[]> _dataForRecommend = new List<List<int>[]>();
         private readonly Dictionary<string, byte> _valueToIndex = new Dictionary<string, byte>();
         private readonly List<string> _indexToValue = new List<string>();
@@ -17,35 +16,66 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
 
         private byte _maxIndex;
 
-        private readonly IComparer<int> _comparer = new DescComparer();
-
-        public IEnumerable<byte> Add(IEnumerable<string> values, int id, byte premium, byte status, byte sex)
+        public IEnumerable<byte> Add(IEnumerable<string> values, int id, byte premium, byte status, byte sex,
+            bool afterPost)
         {
-            foreach (var value in values)
+            if (afterPost)
             {
-                if (!_valueToIndex.TryGetValue(value, out var index))
+                foreach (var value in values)
                 {
-                    _valueToIndex[value] = _maxIndex;
-                    _indexToValue.Add(value);
-                    _sorted.Add(new List<int>());
-
-                    _dataForRecommend.Add(new List<int>[12]);
-                    index = _maxIndex;
-
-                    for (int i = 0; i < 12; i++)
+                    if (!_valueToIndex.TryGetValue(value, out var index))
                     {
-                        _dataForRecommend[index][i] = new List<int>();
+                        _valueToIndex[value] = _maxIndex;
+                        _indexToValue.Add(value);
+                        _set.Add(new HashSet<int>());
+
+                        _dataForRecommend.Add(new List<int>[12]);
+                        index = _maxIndex;
+
+                        for (int i = 0; i < 12; i++)
+                        {
+                            _dataForRecommend[index][i] = new List<int>();
+                        }
+
+                        _maxIndex++;
                     }
 
-                    _maxIndex++;
+                    _set[index].Add(id);
+
+                    var key = GenerateBucketKey(premium, status, sex);
+                    _dataForRecommend[index][key].Add(id);
+
+                    yield return index;
                 }
+            }
+            else
+            {
+                foreach (var value in values)
+                {
+                    if (!_valueToIndex.TryGetValue(value, out var index))
+                    {
+                        _valueToIndex[value] = _maxIndex;
+                        _indexToValue.Add(value);
+                        _sorted.Add(new List<int>());
 
-                _sorted[index].Add(id);
+                        _dataForRecommend.Add(new List<int>[12]);
+                        index = _maxIndex;
 
-                var key = GenerateBucketKey(premium, status, sex);
-                _dataForRecommend[index][key].Add(id);
+                        for (int i = 0; i < 12; i++)
+                        {
+                            _dataForRecommend[index][i] = new List<int>();
+                        }
 
-                yield return index;
+                        _maxIndex++;
+                    }
+
+                    _sorted[index].Add(id);
+
+                    var key = GenerateBucketKey(premium, status, sex);
+                    _dataForRecommend[index][key].Add(id);
+
+                    yield return index;
+                }
             }
         }
 
@@ -79,12 +109,9 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _sortedIndexToValue[sortedIndex];
         }
 
-        public void Sort()
+        public override void Sort()
         {
-            foreach (var sorted in _sorted)
-            {
-                sorted.Sort(_comparer);
-            }
+            base.Sort();
 
             var sortedValueToIndexPairs = _valueToIndex.OrderBy(x => x.Key, StringComparer.Ordinal).ToArray();
             var length = sortedValueToIndexPairs.Length;
@@ -105,11 +132,11 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             var key = GenerateBucketKey(prevPremium, prevStatus, prevSex);
             foreach (var index in previousIndexes)
             {
-                _sorted[index].Remove(id);
+                _set[index].Remove(id);
                 _dataForRecommend[index][key].Remove(id);
             }
 
-            return Add(values, id, premium, status, sex);
+            return Add(values, id, premium, status, sex, true);
         }
 
         public void UpdateRecommendationsData(int id, byte[] indexes, byte prevPremium, byte prevStatus, byte prevSex, byte premium, byte status, byte sex)

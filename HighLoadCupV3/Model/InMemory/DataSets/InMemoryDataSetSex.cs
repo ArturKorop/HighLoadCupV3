@@ -4,12 +4,9 @@ using System.Linq;
 namespace HighLoadCupV3.Model.InMemory.DataSets
 {
     // For Sex
-    public class InMemoryDataSetSex
+    public class InMemoryDataSetSex : InMemoryDataSetBase
     {
         private const int Count = 2;
-        protected List<List<int>> _sorted = new List<List<int>>(Count);
-
-        private readonly IComparer<int> _comparer = new DescComparer();
 
         public InMemoryDataSetSex()
         {
@@ -19,9 +16,16 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             }
         }
 
-        public void Add(byte value, int id)
+        public void Add(byte value, int id, bool afterPost)
         {
-            _sorted[value].Add(id);
+            if (afterPost)
+            {
+                _set[value].Add(id);
+            }
+            else
+            {
+                _sorted[value].Add(id);
+            }
         }
 
         public string GetStatistics(bool full)
@@ -44,15 +48,10 @@ namespace HighLoadCupV3.Model.InMemory.DataSets
             return _sorted.Select(x => x.Count);
         }
 
-        public void Sort()
-        {
-            _sorted.ForEach(x => x.Sort(_comparer));
-        }
-
         public void Update(byte value, int id, byte previousValue)
         {
-            _sorted[previousValue].Remove(id);
-            Add(value, id);
+            _set[previousValue].Remove(id);
+            _set[value].Add(id);
         }
 
         public bool ContainsValue(string key)
