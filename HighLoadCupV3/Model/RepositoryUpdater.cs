@@ -29,10 +29,10 @@ namespace HighLoadCupV3.Model
                 return false;   
             }
 
-            lock (_inMemory)
-            {
+            //lock (_inMemory)
+            //{
                 AddNewAccount(dto, true);
-            }
+            //}
 
             return true;
         }
@@ -155,10 +155,10 @@ namespace HighLoadCupV3.Model
                 //throw new InvalidUpdateException($"Sex {dto.Status} invalid");
             }
 
-            lock (_inMemory)
-            {
+            //lock (_inMemory)
+            //{
                 UpdateExistedAccountImpl(id, dto);
-            }
+            //}
 
             return 0;
         }

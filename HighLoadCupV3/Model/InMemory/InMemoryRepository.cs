@@ -71,9 +71,9 @@ namespace HighLoadCupV3.Model.InMemory
                     sw.Start();
                     Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Started preparation for POST");
 
-                    _swMemory = new System.Timers.Timer(1000);
-                    _swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
-                    _swMemory.Start();
+                    //_swMemory = new System.Timers.Timer(1000);
+                    //_swMemory.Elapsed += (sender, args) => { TotalMemoryHelper.Show(); };
+                    //_swMemory.Start();
 
                     StatusData.PrepareForUpdates();
                     CityData.PrepareForUpdates();
